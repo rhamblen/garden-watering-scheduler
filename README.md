@@ -26,7 +26,7 @@ A Home Assistant Lovelace dashboard card that schedules sequential two-zone gard
 | Version | Status | Features |
 |---------|--------|---------|
 | v0.1.0 | ✅ | Card UI, all helpers, day/time/duration controls, next run display |
-| v0.2.0 | planned | Watering sequence script + scheduling automation |
+| v0.2.0 | ✅ | Watering sequence script + scheduling automation |
 | v0.3.0 | planned | Active countdown per zone, progress bar, Cancel this run |
 | v0.4.0 | planned | Automatic rain cancel via daily weather forecast |
 | v1.0.0 | planned | Full release — polish, complete docs |

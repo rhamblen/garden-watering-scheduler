@@ -131,12 +131,34 @@ A second namespace (`ns2`) calculates the rain-skip "next after" date by always 
 
 ---
 
+## HA script and automation (v0.2.0)
+
+### `script.garden_watering_sequence`
+
+Sequence: turn on upper valve → delay upper_duration minutes → turn off → turn on lower valve → delay lower_duration minutes → turn off. Mode: `single`.
+
+Entity IDs used: `switch.tap_lhs_upper_lawn_blue`, `switch.tap_lhs_lower_lawn_green`, `input_number.garden_water_upper_duration`, `input_number.garden_water_lower_duration`.
+
+### `automation.garden_watering_schedule`
+
+Triggers: `time_pattern` at minutes `0` and `30` (covers all 48 half-hour slots).
+
+Conditions (all must pass):
+1. `input_boolean.garden_schedule_armed` == `on`
+2. `input_boolean.garden_rain_cancel` == `off`
+3. Template: `now().strftime('%H:%M') == states('input_select.garden_water_start_time')`
+4. Template: today's weekday index maps to the matching `input_boolean.garden_water_{day}` == `on`
+
+Action: `script.garden_watering_sequence`. Mode: `single`.
+
+---
+
 ## Build phases
 
 | Phase | Version | Feature | HA additions required |
 |-------|---------|---------|----------------------|
 | 1 | v0.1.0 ✅ | Card UI, all helpers, next-run display | 16 helpers |
-| 2 | v0.2.0 | Scheduling engine — script + automation | 1 script, 1 automation |
+| 2 | v0.2.0 ✅ | Scheduling engine — script + automation | 1 script, 1 automation |
 | 3 | v0.3.0 | Active countdown, progress bar, Cancel | Timer integration in card |
 | 4 | v0.4.0 | Automatic rain cancel | 1 automation (daily weather check) + 1 reset automation |
 | — | v1.0.0 | Full polish + complete docs | None |

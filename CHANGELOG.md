@@ -12,6 +12,20 @@ Nothing planned yet.
 
 ---
 
+## [0.2.0] — 2026-06-18
+
+### Added
+- **`script.garden_watering_sequence`** — turns on upper lawn valve, waits `input_number.garden_water_upper_duration` minutes, turns it off, then turns on lower lawn valve, waits `input_number.garden_water_lower_duration` minutes, turns it off. Mode `single` prevents double-run.
+- **`automation.garden_watering_schedule`** — `time_pattern` trigger at every :00 and :30; four conditions: schedule armed, rain cancel off, current HH:MM matches `input_select.garden_water_start_time`, current weekday's `input_boolean.garden_water_{day}` is on. Calls `script.garden_watering_sequence` when all pass.
+
+### Design decisions
+- `time_pattern` at minutes 0 and 30 covers all 48 start-time slots without polling every minute
+- Template conditions used for time and day checks because no native HA condition handles dynamic values from `input_select` or a runtime-indexed `input_boolean` array
+- Automation mode `single` matches script mode — a second trigger while watering is in progress is safely ignored
+- `rain_cancel` condition already wired in anticipation of v0.4.0; the manual 🌧 toggle on the card already exercises this path
+
+---
+
 ## [0.1.0] — 2026-06-18
 
 ### Added
