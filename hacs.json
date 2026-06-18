@@ -1,0 +1,7 @@
+{
+  "name": "Garden Watering Scheduler Card",
+  "description": "Home Assistant dashboard card for scheduling sequential garden watering — two-zone lawn sequencing, day/time picker, rain cancel, and winter shutdown.",
+  "render_readme": true,
+  "content_in_root": false,
+  "filename": "releases/v0.1.0/card.yaml"
+}
