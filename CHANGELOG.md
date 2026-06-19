@@ -8,10 +8,31 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-- v0.4.0 — automatic rain cancel via daily weather forecast
 - v0.5.0 — active per-zone countdown, progress bar, Cancel this run
 - Dual-card support — second helper namespace for independent schedules
 - Design review — pool fill target max vs default; valve-card timer handoff vs self-managed delay
+
+---
+
+## [0.4.0] — 2026-06-19
+
+### Added
+- **Automatic rain cancel** — three new automations skip a scheduled run when the weather doesn't warrant it, without any card change (they set the existing `input_boolean.garden_rain_cancel`, which the scheduler already honours):
+  - `automation.garden_rain_recorder` — state trigger on the weather entity's rain conditions (`rainy`, `pouring`, `lightning-rainy`, `snowy-rainy`, `hail`); stamps `input_datetime.garden_last_rain`.
+  - `automation.garden_rain_auto_cancel_check` — fires 30 min before the start time (only when a run is actually due). Calls `weather.get_forecasts` (`type: hourly`) and cancels if it **rained in the last 12 h** (now − `garden_last_rain` < 12 h) **OR** any hour in the **next 24 h** has `precipitation_probability ≥ input_number.garden_rain_threshold`. On cancel it sets `garden_rain_cancel` and posts a persistent notification with the reason.
+  - `automation.garden_rain_cancel_daily_reset` — fires 30 min after the start time; clears `garden_rain_cancel` and dismisses the notification so a skip (auto or manual) doesn't carry to the next day.
+- **`input_datetime.garden_last_rain`** helper — records the last actual-rain onset, powering the 12 h lookback.
+- Detection uses **two signals**: *actual* rain from the weather entity's `state` (condition), and *forecast* rain from the hourly `precipitation_probability`.
+
+### Notes
+- **Weather entity is parameterised, not hard-coded** — set your own `weather.*` entity in the two `# << SET WEATHER ENTITY` spots in `releases/v0.4.0/automations.yaml` (recorder trigger + forecast service target). Any provider with hourly forecasts works. The probability-scan template is provider-agnostic (`fc.values() | first`) so it needs no editing.
+- **History Stats avoided on purpose** — that helper type isn't creatable through the HA config-flow API and templates can't look back in time, so an `input_datetime` + recorder automation provides the same 12 h answer using only UI/Claude-installable objects.
+- The card and `script.garden_watering_sequence` are unchanged; `releases/v0.4.0/card.yaml` is identical to v0.3.0 and shipped only to keep the release folder self-contained.
+
+### Anchoring / design decisions
+- All three automations are anchored to ±30 min of `input_select.garden_water_start_time`, so the feature works at any start time, avoids fixed-clock collisions, and never races the existing schedule automation (which still evaluates `rain_cancel` at the start time).
+- The auto-check only ever turns the flag **on** (so a manual 🌧 skip is never overridden by a dry forecast); the separate daily reset turns it off.
+- Template conditions for the T±30 / weekday checks are unavoidable — they compare a derived time against the `input_select`/`input_boolean` helper values, which native `condition: time` can't reference — matching the existing schedule automation's pattern.
 
 ---
 

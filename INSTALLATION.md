@@ -1,6 +1,6 @@
 # Installation Guide
 
-**Current version:** v0.3.0
+**Current version:** v0.4.0
 **Repository:** https://github.com/rhamblen/garden-watering-scheduler
 
 ---
@@ -26,6 +26,11 @@ Claude will:
 2. Create all helpers — including the five valve slots, pre-filled with your switch entity IDs and names
 3. Create the watering script (`script.garden_watering_sequence`) and the scheduling automation
 4. Deploy the card to your chosen dashboard
+5. (v0.4.0) Discover your `weather.*` entity, create the rain helpers, and wire up the three rain-cancel automations
+
+To add rain cancel to an existing install, just say:
+
+> "Add automatic rain cancel (v0.4.0) to my Garden Watering Scheduler — discover my weather entity and wire up the rain automations."
 
 You can start with a single valve and add more later — just populate the next slot's entity, name, and duration helpers; the card and script pick it up automatically with no further changes.
 
@@ -253,7 +258,22 @@ Helper type: **Number**
 | Display mode | Slider |
 | Icon | `mdi:water-percent` |
 
-Creates `input_number.garden_rain_threshold`. Set initial value to `60` — watering skips when forecast precipitation probability is 60% or above.
+Creates `input_number.garden_rain_threshold`. Set initial value to `60` — the v0.4.0 rain check skips watering when the **forecast** precipitation probability for any hour in the next 24 h is at or above this value. Lower it (e.g. `40`) to skip on lighter chances of rain; raise it to only skip when rain is very likely.
+
+---
+
+##### 1o. Last rain timestamp (v0.4.0 — only needed for automatic rain cancel)
+
+Helper type: **Date and/or time** — enable **both** date and time.
+
+| Field | Value |
+|-------|-------|
+| Name | `Garden Last Rain` |
+| Date | ✅ enabled |
+| Time | ✅ enabled |
+| Icon | `mdi:weather-rainy` |
+
+Creates `input_datetime.garden_last_rain`. After creating it, set it once to a clearly-old value (e.g. `2020-01-01 00:00`) so it never reads as "rained recently" before the recorder automation first fires. The `Garden Rain Recorder` automation (Step 5) keeps it updated from then on.
 
 > Per-zone live countdown timers (`timer.*`) are planned for v0.5.0 and are **not** required for the current release — the card computes the next-run countdown directly in Jinja2.
 
@@ -261,7 +281,7 @@ Creates `input_number.garden_rain_threshold`. Set initial value to `60` — wate
 
 #### Step 2 — Add the card to your dashboard
 
-1. Download [`releases/v0.3.0/card.yaml`](releases/v0.3.0/card.yaml)
+1. Download [`releases/v0.4.0/card.yaml`](releases/v0.4.0/card.yaml)
 2. Open your Lovelace dashboard → click the pencil (edit) icon
 3. Click **+ Add card** in the target section
 4. Scroll to the bottom and choose **Manual card**
@@ -294,6 +314,77 @@ The watering script (`script.garden_watering_sequence`) and the time-pattern aut
 
 ---
 
+#### Step 5 — Automatic rain cancel (v0.4.0)
+
+This step is **optional**. It adds three automations that automatically skip a scheduled run when it has rained recently or rain is forecast, and posts a Home Assistant notification when they do. The card does not change — the automations simply set `input_boolean.garden_rain_cancel`, which the scheduler already honours.
+
+**Prerequisites:** the `input_datetime.garden_last_rain` helper from Step 1o, and a working weather integration (see below).
+
+---
+
+##### 5a. Pick your weather provider
+
+The rain check reads a Home Assistant **weather entity** — it is *not* hard-coded, so you choose which provider to trust.
+
+1. Make sure you have at least one weather integration installed (**Settings → Devices & Services → Add Integration** — e.g. Met Office, Met.no, OpenWeatherMap, AccuWeather).
+2. Find its entity ID: **Developer Tools → States**, filter on `weather.` — e.g. `weather.met_office_fleet`, `weather.forecast_home`, `weather.openweathermap`.
+3. **Requirement:** the entity must support **hourly** forecasts. Most do. You can confirm in **Developer Tools → Actions**, call `weather.get_forecasts` with `type: hourly` against your entity and check it returns a list of hours, each with a `precipitation_probability` field.
+
+> If you have more than one weather integration, pick the one most accurate for your location. In the UK the Met Office entity is usually the best local choice.
+
+---
+
+##### 5b. Which parameter is used for what
+
+The feature combines **two independent signals**. Understanding which field each uses makes the provider choice clear:
+
+| Check | Window | Data source | Field used | Cancels when |
+|-------|--------|-------------|-----------|--------------|
+| **Actual rain** | previous **12 h** | the weather entity's **`state`** (its current *condition*) | condition is one of `rainy`, `pouring`, `lightning-rainy`, `snowy-rainy`, `hail` | it entered a rain condition in the last 12 h |
+| **Forecast rain** | next **24 h** | `weather.get_forecasts` (**`type: hourly`**) | each hour's **`precipitation_probability`** (%) | any hour ≥ `input_number.garden_rain_threshold` |
+
+- **Actual** is recorded continuously: whenever the condition turns to rain, the `Garden Rain Recorder` automation stamps `input_datetime.garden_last_rain`. "Rained recently" is then just *now − last_rain < 12 h*.
+- **Forecast** is fetched on demand 30 minutes before each run, and the highest probability across the next 24 hourly entries is compared to your threshold %.
+
+If **either** signal says rain, the run is cancelled.
+
+> **Note on `precipitation` (mm) vs `precipitation_probability` (%):** this release decides on **probability**, because many providers (Met Office included) often report `0 mm` even when the chance of rain is moderate. If you would rather gate on forecast rainfall *amount*, see the comment block in `automations.yaml` — but probability is recommended.
+
+---
+
+##### 5c. Create the three automations
+
+Open [`releases/v0.4.0/automations.yaml`](releases/v0.4.0/automations.yaml). It contains three automations:
+
+| Automation | Fires | Does |
+|-----------|-------|------|
+| `Garden Rain Recorder` | weather condition → rain | stamps `input_datetime.garden_last_rain` (the **actual**-rain source) |
+| `Garden Rain Auto-Cancel Check` | 30 min **before** the start time, only when a run is due | evaluates actual + forecast; if either says rain, sets `garden_rain_cancel` and notifies |
+| `Garden Rain Cancel Daily Reset` | 30 min **after** the start time | clears `garden_rain_cancel` and dismisses the notification for a clean next day |
+
+**To add them via the UI:** Settings → Automations & Scenes → Automations → **Create automation** → ⋮ menu → **Edit in YAML**, then paste one automation block at a time (each block starts at a `- alias:` line). Repeat for all three.
+
+**⚠️ Set your weather entity — TWO places.** In `automations.yaml`, replace `weather.YOUR_FORECAST_ENTITY` with the entity from Step 5a in the two spots marked `# << SET WEATHER ENTITY`:
+
+1. In **`Garden Rain Recorder`** → `triggers:` → `entity_id:` (this is the **actual**-rain watcher)
+2. In **`Garden Rain Auto-Cancel Check`** → the `weather.get_forecasts` action → `target: entity_id:` (this is the **forecast** source)
+
+That's it — the probability scan inside the check is provider-agnostic and needs no editing. Nothing else references the weather entity.
+
+> **Claude-assisted shortcut:** instead of editing YAML, say *"Add automatic rain cancel (v0.4.0) to my Garden Watering Scheduler — discover my weather entity and wire up the rain automations."* Claude finds your `weather.*` entity, confirms it has hourly forecasts, and creates all three automations for you.
+
+---
+
+##### 5d. Verify
+
+1. With a watering day and start time set and the schedule armed, call `Garden Rain Auto-Cancel Check` from Settings → Automations (⋮ → **Run**) — running it bypasses the time conditions so you can test the logic immediately.
+2. If rain is currently recorded or forecast above your threshold, `input_boolean.garden_rain_cancel` flips **on**, the card shows the **Rain skip** badge, and a 🌧 notification appears in the HA sidebar bell explaining the reason.
+3. Press **Go** on the card (or toggle the 🌧 button) to clear it and water anyway.
+
+> Tip: lower `input_number.garden_rain_threshold` temporarily to force a cancel and confirm the wiring, then set it back.
+
+---
+
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
@@ -307,3 +398,7 @@ The watering script (`script.garden_watering_sequence`) and the time-pattern aut
 | Watering runs but valve never opens | Wrong entity ID in the slot | Confirm `input_text.garden_valve_N_entity` matches a real `switch.*` entity exactly |
 | Next run shows "No days selected" | No day toggles are on | Tap at least one day button |
 | Next run date or countdown looks wrong | Time zone mismatch | Check HA time zone setting matches your local time |
+| Rain check never cancels | Weather entity not set, or has no hourly forecast | Confirm both `# << SET WEATHER ENTITY` spots use a real `weather.*` entity, and that `weather.get_forecasts` with `type: hourly` returns data for it |
+| Rain check cancels every day | `garden_last_rain` left at a recent value, or threshold too low | Set `input_datetime.garden_last_rain` to an old date (e.g. `2020-01-01`); raise `input_number.garden_rain_threshold` |
+| Rain skip never clears | Reset automation missing or start time changed mid-day | Confirm `Garden Rain Cancel Daily Reset` exists; it clears 30 min after the start time |
+| "Rained recently" never triggers | Recorder automation not firing | Check `Garden Rain Recorder`'s trigger entity matches your weather entity; it only stamps when the condition actually turns to rain |

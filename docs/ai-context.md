@@ -27,10 +27,11 @@ Same tech stack. Defines the valve entities this scheduler uses. Reference for C
 ├── docs/
 │   └── ai-context.md                — This file. AI/Claude reference for repo navigation
 └── releases/
-    ├── v0.1.0/ … v0.2.1/            — Earlier releases (card.yaml + RELEASE_NOTES.md each)
-    └── v0.3.0/
-        ├── card.yaml                — Current Lovelace card YAML (copy-paste ready)
-        └── RELEASE_NOTES.md         — Release-specific notes for v0.3.0
+    ├── v0.1.0/ … v0.3.0/            — Earlier releases (card.yaml + RELEASE_NOTES.md each)
+    └── v0.4.0/
+        ├── card.yaml                — Current Lovelace card YAML (identical to v0.3.0; copy-paste ready)
+        ├── automations.yaml         — Rain-cancel automations (recorder, auto-check, daily reset)
+        └── RELEASE_NOTES.md         — Release-specific notes for v0.4.0
 ```
 
 ---
@@ -60,7 +61,8 @@ Single `custom:html-template-card` with `ignore_line_breaks: true`. Uses:
 | `input_boolean.garden_schedule_armed` | Toggle | Schedule active/inactive |
 | `input_boolean.garden_winter_shutdown` | Toggle | Seasonal suspension |
 | `input_boolean.garden_rain_cancel` | Toggle | Skip today's run (manual or auto) |
-| `input_number.garden_rain_threshold` | Number (0–100, step 5) | Auto rain cancel % threshold |
+| `input_number.garden_rain_threshold` | Number (0–100, step 5) | Forecast precipitation % threshold for auto rain cancel |
+| `input_datetime.garden_last_rain` | Date+time | v0.4.0 — last actual-rain onset; powers the 12 h lookback |
 
 Per-zone active-countdown `timer.*` helpers are deferred to v0.5.0 and not currently created.
 
@@ -164,6 +166,23 @@ Action: `script.garden_watering_sequence`. Mode: `single`.
 
 ---
 
+## Rain cancel automations (v0.4.0)
+
+Detection-only — no card or script change. Three automations set the existing `input_boolean.garden_rain_cancel`. Weather entity is **parameterised** (set in two spots in `releases/v0.4.0/automations.yaml`); the live install uses Met Office (`weather.met_office_fleet`), with `weather.forecast_home_weather` (met.no) as the other available provider.
+
+### `automation.garden_rain_recorder`
+State trigger on the weather entity → `to:` `[rainy, pouring, lightning-rainy, snowy-rainy, hail]`. Action: `input_datetime.set_datetime` stamps `garden_last_rain = now()`. This is the **actual**-rain source (the weather entity's `state`/condition). Mode `single`.
+
+### `automation.garden_rain_auto_cancel_check`
+Triggers: `time_pattern` minutes 0/30. Conditions (gate to a run actually due): armed on, winter off, rain_cancel off, `(now()+30min) HH:MM == start_time`, and the run-day (`now()+30min` weekday) day-boolean is on. Actions: `weather.get_forecasts` (`type: hourly`, `response_variable: fc`) → `variables` compute `max_prob` (highest `precipitation_probability` over hours within next 24 h; provider-agnostic via `fc.values() | first`), `rained_recently` (`now − garden_last_rain < 43200 s`) → `choose`: if `rained_recently or max_prob >= threshold`, `input_boolean.turn_on` rain_cancel + `persistent_notification.create` (id `garden_rain_cancel`). Mode `single`.
+
+### `automation.garden_rain_cancel_daily_reset`
+Triggers: `time_pattern` minutes 0/30. Conditions: `(now()-30min) HH:MM == start_time` and rain_cancel on. Actions: `input_boolean.turn_off` rain_cancel + `persistent_notification.dismiss` (id `garden_rain_cancel`). Mode `single`.
+
+**Design:** anchored to ±30 min of `start_time` (no fixed-clock collisions, no race with the schedule automation). Auto-check only turns the flag **on** so a manual 🌧 skip is never overridden; the reset turns it off. Notify target = HA persistent notification. History Stats was avoided because that helper type isn't creatable via the config-flow API and templates can't query history — hence the `input_datetime` + recorder pattern. Forecast decision is on **probability %**, not mm (providers often report 0 mm at moderate probability). See [[project-v040-weather]] in Claude's memory for the as-built record.
+
+---
+
 ## Build phases
 
 | Phase | Version | Feature | HA additions required |
@@ -171,7 +190,7 @@ Action: `script.garden_watering_sequence`. Mode: `single`.
 | 1 | v0.1.0 ✅ | Card UI, all helpers, next-run display | helpers |
 | 2 | v0.2.0 ✅ | Scheduling engine — script + automation | 1 script, 1 automation |
 | 3 | v0.3.0 ✅ | Dynamic valve list (1–5 zones), next-run countdown, zone-exclude dot, Test button | 15 valve-slot helpers; script rewritten |
-| 4 | v0.4.0 | Automatic rain cancel | 1 automation (daily weather check) + 1 reset automation |
+| 4 | v0.4.0 ✅ | Automatic rain cancel (12 h actual + 24 h forecast, with notification) | 1 input_datetime helper + 3 automations (recorder, auto-check, daily reset) |
 | 5 | v0.5.0 | Active per-zone countdown, progress bar, Cancel this run | Timer integration in card |
 | — | v1.0.0 | Full polish + complete docs | None |
 
@@ -211,5 +230,5 @@ Tell Claude:
 Claude should:
 1. Call `ha_config_get_dashboard(url_path='...')` to locate the target section
 2. Note the `config_hash`
-3. Build the card YAML from the latest `releases/vX.Y.Z/card.yaml` (currently `releases/v0.3.0/card.yaml`)
+3. Build the card YAML from the latest `releases/vX.Y.Z/card.yaml` (currently `releases/v0.4.0/card.yaml`)
 4. Call `ha_config_set_dashboard(python_transform='...', config_hash='...')` to insert the card

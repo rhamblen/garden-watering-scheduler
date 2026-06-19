@@ -15,7 +15,7 @@ A Home Assistant Lovelace dashboard card that schedules sequential garden wateri
 - **Total run display** — live sum of non-zero durations; shows `15+10` / `1 zone` / `—` depending on configuration
 - **Go / Disarm** — arm or disarm the schedule in one tap
 - **Winterise** — suspend all scheduling with a single button; re-enable in spring
-- **Rain cancel** — 🌧 header button skips today's run manually; automatic rain detection added in v0.4.0
+- **Rain cancel** — 🌧 header button skips today's run manually; **automatic rain detection (v0.4.0)** cancels a run when it rained in the last 12 h or rain is forecast in the next 24 h, and posts a notification
 - **Next run display** — calculated live in Jinja2; shows the actual next scheduled date and time, with a live countdown (`in 6d 22h 10m`)
 - **Test button** — runs the sequence on demand with a 60-second grace countdown before it starts
 - **Five card states** — Disarmed / Armed / Rain skip / Winterised / Running
@@ -31,7 +31,7 @@ A Home Assistant Lovelace dashboard card that schedules sequential garden wateri
 | v0.2.0 | ✅ | Watering sequence script + scheduling automation |
 | v0.2.1 | ✅ | Bug fixes: buttons, blank card, layout — Winterise/Disarm in header |
 | v0.3.0 | ✅ | Dynamic valve list (1–5 zones), next-run countdown, zone-exclude dot, Test button |
-| v0.4.0 | planned | Automatic rain cancel via daily weather forecast |
+| v0.4.0 | ✅ | Automatic rain cancel — 12 h actual + 24 h forecast check, with notification |
 | v0.5.0 | planned | Active countdown per zone, progress bar, Cancel this run |
 | v1.0.0 | planned | Full release — polish, complete docs |
 
@@ -61,8 +61,9 @@ Claude discovers your valve switch entities, creates all helpers (pre-filling th
 
 1. Install `custom:html-template-card` via HACS
 2. Create the HA helpers (see [INSTALLATION.md](INSTALLATION.md)) — fill in 1–5 valve slots with your switch entity IDs
-3. Download [`releases/v0.3.0/card.yaml`](releases/v0.3.0/card.yaml)
+3. Download [`releases/v0.4.0/card.yaml`](releases/v0.4.0/card.yaml)
 4. Add as a Manual card on your dashboard
+5. (Optional) Add automatic rain cancel — see [INSTALLATION.md](INSTALLATION.md) → v0.4.0
 
 ---
 
@@ -78,7 +79,9 @@ Claude discovers your valve switch entities, creates all helpers (pre-filling th
 | `input_boolean.garden_schedule_armed` | Schedule armed / disarmed |
 | `input_boolean.garden_winter_shutdown` | Winter suspension toggle |
 | `input_boolean.garden_rain_cancel` | Rain skip flag (manual or auto) |
-| `input_number.garden_rain_threshold` | Precipitation % threshold for auto rain cancel (v0.4.0) |
+| `input_number.garden_rain_threshold` | Forecast precipitation % threshold for auto rain cancel (v0.4.0) |
+| `input_datetime.garden_last_rain` | Timestamp of last actual rain — powers the 12 h lookback (v0.4.0) |
+| `weather.*` (your provider) | Forecast + current condition source for rain detection (v0.4.0); set in the automations, not hard-coded |
 
 ---
 
@@ -99,6 +102,33 @@ Claude discovers your valve switch entities, creates all helpers (pre-filling th
 ```
 
 The sequence is managed by a single HA script (`script.garden_watering_sequence`) called by a time-pattern automation (added in v0.2.0). The script loops over all five slots; each slot reads its valve entity from `input_text.garden_valve_N_entity` and its run time from `input_number.garden_valve_N_duration`, skipping any slot whose duration is 0.
+
+---
+
+## Automatic rain cancel (v0.4.0)
+
+Three automations decide, 30 minutes before each scheduled run, whether to skip it:
+
+```
+[T − 30 min, on a day a run is due]
+        ↓
+  Rained in the last 12 h?  ──┐   (actual: weather CONDITION was rainy/pouring/…,
+        │ no                  │    recorded into input_datetime.garden_last_rain)
+        ↓                     │
+  Any hour in next 24 h ≥ ────┤   (forecast: precipitation_probability from
+  garden_rain_threshold %?    │    weather.get_forecasts, type: hourly)
+        │ no                  │ yes (either)
+        ↓                     ↓
+   run proceeds        set garden_rain_cancel = on  +  notify
+                              ↓
+                  existing schedule automation skips the run
+                              ↓
+              [T + 30 min] flag cleared, notification dismissed
+```
+
+- **Actual rain** comes from the weather entity's `state` (its current condition). **Forecast rain** comes from the hourly `precipitation_probability` returned by `weather.get_forecasts`.
+- The **weather provider is not hard-coded** — you point it at your own `weather.*` entity. See [INSTALLATION.md](INSTALLATION.md) → *v0.4.0 — Automatic rain cancel* for exactly which two places to set it.
+- Pressing **Go** overrides any skip and waters anyway.
 
 ---
 
