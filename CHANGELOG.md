@@ -12,6 +12,19 @@ Nothing planned yet.
 
 ---
 
+## [0.2.1] — 2026-06-19
+
+### Fixed
+- **Buttons not responding** — `hass` is not in global scope inside `html-template-card`'s shadow DOM; all service calls now use `document.querySelector('home-assistant').hass.callService(...)` (pattern from companion Zigbee Smart Water Valve card)
+- **Blank card (Jinja2 `unexpected '%'`)** — `(function(){{% if` in Go button onclick created the sequence `{{%`, which Jinja2's WebSocket subscription lexer treated as an unclosed variable expression; replaced with a JS-level guard `{{ 'true' if winter else 'false' }}` to eliminate `{% %}` block tags inside `onclick` IIFEs entirely
+- **CSS `border-radius:50%`** → `50px`; `strftime('%H:%M')` → manual `now().hour`/`now().minute` construction; `%7` modulo → conditional arithmetic — defensive `%` removal
+
+### Changed
+- **Winterise ❄ and Disarm ■ moved to card header** as compact icon buttons alongside the rain toggle; infrequent seasonal controls belong at the top, not alongside the daily Go button
+- **Go button is now full-width** in its own row below the zone duration controls
+
+---
+
 ## [0.2.0] — 2026-06-18
 
 ### Added
