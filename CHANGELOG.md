@@ -8,7 +8,30 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Nothing planned yet.
+- v0.4.0 — automatic rain cancel via daily weather forecast
+- v0.5.0 — active per-zone countdown, progress bar, Cancel this run
+- Dual-card support — second helper namespace for independent schedules
+- Design review — pool fill target max vs default; valve-card timer handoff vs self-managed delay
+
+---
+
+## [0.3.0] — 2026-06-19
+
+### Added
+- **Dynamic valve list (1–5 zones)** — valves are no longer hard-coded. Each zone lives in a numbered slot backed by three helpers: `input_text.garden_valve_N_entity` (the switch entity), `input_text.garden_valve_N_name` (display label), and `input_number.garden_valve_N_duration` (0–60 min, step 5). The card iterates slots 1–5 and renders a zone row only for slots whose entity is filled, so you can start with one valve and grow to five with no card or script changes.
+- **Next-run countdown** — below the next-run date/time, a live countdown shows `in 6d 22h 10m` (days component appears only when ≥ 24h away). Computed in Jinja2 from `ns.off` (days ahead) and the start time, using `//` and subtraction — no `%` modulo and no `strftime`, consistent with the card's defensive templating.
+- **Zone-exclude dot** — a red ✗ dot on each zone row sets that zone's duration to 0, excluding it from the run while keeping the row visible. Total run shows `15+10` for multiple zones, `1 zone` for a single zone, or `—` when none are active.
+
+### Changed
+- **`script.garden_watering_sequence` rewritten** — replaced the two hard-coded upper/lower blocks with five slot-based `if/then` steps. Each step turns on the templated valve entity from `input_text.garden_valve_N_entity` via `homeassistant.turn_on`, waits the slot's duration, then turns it off. Slots with duration 0 are skipped by a `numeric_state … above: 0` guard.
+- **Zone duration label width** `28px → 40px` (`.gws-dl`) — double-digit values like "20 min" no longer wrap.
+
+### Removed
+- **`input_number.garden_water_upper_duration` / `_lower_duration`** — superseded by the per-slot duration helpers. (The named per-zone `timer.*` helpers previously earmarked for v0.3.0 are deferred to v0.5.0 and are not required.)
+
+### Migration from v0.2.x
+- Create the 15 valve-slot helpers (entity/name/duration × 5). Put your old upper-lawn values in slot 1 and lower-lawn in slot 2; leave slots 3–5 blank to keep the same two-zone behaviour.
+- Re-deploy the card from `releases/v0.3.0/card.yaml` (or let Claude update it in place).
 
 ---
 
