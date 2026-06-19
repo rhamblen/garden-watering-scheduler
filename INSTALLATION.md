@@ -1,6 +1,5 @@
 # Installation Guide
 
-**Current version:** v0.4.0
 **Repository:** https://github.com/rhamblen/garden-watering-scheduler
 
 ---
@@ -9,30 +8,31 @@
 
 ### Option A — Claude-assisted (recommended)
 
-No manual YAML or helper setup required. Claude reads the repository and configures everything — including discovering your Zigbee valve switches and wiring them into the zone slots.
+Claude reads the repository and sets everything up for you — no manual YAML or helper creation. It discovers your valve switches, creates the helpers, scripts, and automations, wires up rain cancel against your own weather forecast, and deploys the card.
 
 **What you need first:**
 - HACS installed in Home Assistant
 - `custom:html-template-card` installed via HACS → Frontend → search "HTML Template Card"
-- Claude with Home Assistant MCP connected
+- Claude with the Home Assistant MCP connected
 - Your watering valves paired as `switch.*` entities (any number, 1–5)
+- A weather integration installed if you want automatic rain cancel (Met Office, Met.no, OpenWeatherMap, AccuWeather, …) — Claude picks up the entity for you
 
-**Then tell Claude:**
+**Tell Claude:**
 
-> "Help me install the Garden Watering Scheduler from https://github.com/rhamblen/garden-watering-scheduler — discover my Zigbee valve switches, set them up as zones, and add the card to my [dashboard name] dashboard."
+> "Help me install the Garden Watering Scheduler from https://github.com/rhamblen/garden-watering-scheduler — discover my Zigbee valve switches, set them up as zones, add automatic rain cancel using my weather forecast, and put the card on my [dashboard name] dashboard."
 
 Claude will:
-1. Search your HA instance for valve switch entities and confirm which to use
-2. Create all helpers — including the five valve slots, pre-filled with your switch entity IDs and names
-3. Create the watering script (`script.garden_watering_sequence`) and the scheduling automation
-4. Deploy the card to your chosen dashboard
-5. (v0.4.0) Discover your `weather.*` entity, create the rain helpers, and wire up the three rain-cancel automations
+1. Find your valve switch entities and confirm which to use
+2. Create every helper, pre-filling the valve slots with your switch entity IDs and names
+3. Create the watering script and the scheduling automation
+4. Discover your weather entity and wire up the rain-cancel automations
+5. Add the card to your chosen dashboard
 
-To add rain cancel to an existing install, just say:
+Already running the scheduler and just want to add rain cancel? Ask:
 
-> "Add automatic rain cancel (v0.4.0) to my Garden Watering Scheduler — discover my weather entity and wire up the rain automations."
+> "Add automatic rain cancel to my Garden Watering Scheduler — discover my weather entity and set up the rain automations."
 
-You can start with a single valve and add more later — just populate the next slot's entity, name, and duration helpers; the card and script pick it up automatically with no further changes.
+You can start with a single valve and add more later — populate the next slot's entity, name, and duration helpers and the card and script pick them up automatically, no further changes needed.
 
 ---
 
@@ -240,7 +240,7 @@ Helper type: **Toggle**
 | Name | `Garden rain cancel` |
 | Icon | `mdi:weather-rainy` |
 
-Creates `input_boolean.garden_rain_cancel`. Leave off by default. Set automatically by the rain check automation (v0.4.0) or manually via the card header button.
+Creates `input_boolean.garden_rain_cancel`. Leave off by default. Set automatically by the rain-cancel automation, or manually via the card's 🌧 header button.
 
 ---
 
@@ -258,11 +258,11 @@ Helper type: **Number**
 | Display mode | Slider |
 | Icon | `mdi:water-percent` |
 
-Creates `input_number.garden_rain_threshold`. Set initial value to `60` — the v0.4.0 rain check skips watering when the **forecast** precipitation probability for any hour in the next 24 h is at or above this value. Lower it (e.g. `40`) to skip on lighter chances of rain; raise it to only skip when rain is very likely.
+Creates `input_number.garden_rain_threshold`. Set initial value to `60` — the rain check skips watering when the **forecast** precipitation probability for any hour in the next 24 h is at or above this value. Lower it (e.g. `40`) to skip on lighter chances of rain; raise it to only skip when rain is very likely.
 
 ---
 
-##### 1o. Last rain timestamp (v0.4.0 — only needed for automatic rain cancel)
+##### 1o. Last rain timestamp (needed for automatic rain cancel)
 
 Helper type: **Date and/or time** — enable **both** date and time.
 
@@ -273,9 +273,9 @@ Helper type: **Date and/or time** — enable **both** date and time.
 | Time | ✅ enabled |
 | Icon | `mdi:weather-rainy` |
 
-Creates `input_datetime.garden_last_rain`. After creating it, set it once to a clearly-old value (e.g. `2020-01-01 00:00`) so it never reads as "rained recently" before the recorder automation first fires. The `Garden Rain Recorder` automation (Step 5) keeps it updated from then on.
+Creates `input_datetime.garden_last_rain`. After creating it, set it once to a clearly-old value (e.g. `2020-01-01 00:00`) so it never reads as "rained recently" before the recorder automation first fires. The `Garden Rain Recorder` automation (Step 5) keeps it updated from then on. Skip this helper if you don't want automatic rain cancel.
 
-> Per-zone live countdown timers (`timer.*`) are planned for v0.5.0 and are **not** required for the current release — the card computes the next-run countdown directly in Jinja2.
+> You do not need to create any `timer.*` helpers — the card computes the next-run countdown directly in Jinja2.
 
 ---
 
@@ -308,15 +308,15 @@ Tap **Go** — badge changes to Armed and the status shows the next run date wit
 
 ---
 
-#### Step 4 — Scheduling automations (v0.2.0)
+#### Step 4 — Watering script and schedule automation
 
 The watering script (`script.garden_watering_sequence`) and the time-pattern automation that triggers it are created automatically by the Claude-assisted install (Option A). If you installed manually, create them from the definitions in the repo, or ask Claude to add them. Use the **Test** button on the card to run the full sequence on demand once they exist.
 
 ---
 
-#### Step 5 — Automatic rain cancel (v0.4.0)
+#### Step 5 — Automatic rain cancel (optional)
 
-This step is **optional**. It adds three automations that automatically skip a scheduled run when it has rained recently or rain is forecast, and posts a Home Assistant notification when they do. The card does not change — the automations simply set `input_boolean.garden_rain_cancel`, which the scheduler already honours.
+This step is **optional** — skip it if you only want manual rain skipping via the card's 🌧 button. It adds three automations that automatically skip a scheduled run when it has rained recently or rain is forecast, and post a Home Assistant notification when they do. The card does not change — the automations simply set `input_boolean.garden_rain_cancel`, which the scheduler already honours.
 
 **Prerequisites:** the `input_datetime.garden_last_rain` helper from Step 1o, and a working weather integration (see below).
 
@@ -348,7 +348,7 @@ The feature combines **two independent signals**. Understanding which field each
 
 If **either** signal says rain, the run is cancelled.
 
-> **Note on `precipitation` (mm) vs `precipitation_probability` (%):** this release decides on **probability**, because many providers (Met Office included) often report `0 mm` even when the chance of rain is moderate. If you would rather gate on forecast rainfall *amount*, see the comment block in `automations.yaml` — but probability is recommended.
+> **Note on `precipitation` (mm) vs `precipitation_probability` (%):** the automations decide on **probability**, because many providers (Met Office included) often report `0 mm` even when the chance of rain is moderate. If you would rather gate on forecast rainfall *amount*, see the comment block in `automations.yaml` — but probability is recommended.
 
 ---
 
@@ -371,7 +371,7 @@ Open [`releases/v0.4.0/automations.yaml`](releases/v0.4.0/automations.yaml). It 
 
 That's it — the probability scan inside the check is provider-agnostic and needs no editing. Nothing else references the weather entity.
 
-> **Claude-assisted shortcut:** instead of editing YAML, say *"Add automatic rain cancel (v0.4.0) to my Garden Watering Scheduler — discover my weather entity and wire up the rain automations."* Claude finds your `weather.*` entity, confirms it has hourly forecasts, and creates all three automations for you.
+> **Claude-assisted shortcut:** instead of editing YAML, say *"Add automatic rain cancel to my Garden Watering Scheduler — discover my weather entity and wire up the rain automations."* Claude finds your `weather.*` entity, confirms it has hourly forecasts, and creates all three automations for you.
 
 ---
 
