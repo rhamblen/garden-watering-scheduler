@@ -6,7 +6,7 @@ This file helps Claude (or any AI assistant) understand the repository structure
 
 ## Repository purpose
 
-This repository contains a Home Assistant Lovelace dashboard card that schedules sequential garden watering across **1–5 configurable valve zones**. A single `custom:html-template-card` provides the full UI — day selection, time picking, per-zone duration selection, armed/disarmed/winterised state management, next-run display with live countdown, and an on-demand Test button. The actual watering sequence is controlled by a separate HA script and automation (added in v0.2.0). Valves are not hard-coded — each zone's switch entity, name, and duration live in slot helpers (`garden_valve_N_*`, N = 1–5), so the card adapts to however many valves are configured.
+This repository contains a Home Assistant Lovelace dashboard card that schedules sequential garden watering across **1–5 configurable valve zones**. A single `custom:html-template-card` provides the full UI — day selection, time picking, per-zone duration selection, armed/disarmed/winterised state management, next-run display with live countdown, header **▶ Start now / ■ Stop** controls, and a during-run **Time remaining** countdown that ticks client-side. The actual watering sequence is controlled by a separate HA script and automation. Valves are not hard-coded — each zone's switch entity, name, and duration live in slot helpers (`garden_valve_N_*`, N = 1–5), so the card adapts to however many valves are configured.
 
 ## Companion project
 
@@ -22,17 +22,21 @@ Same tech stack. Defines the valve entities this scheduler uses. Reference for C
 ├── README.md                        — Project description, features, entity table, sequence diagram
 ├── CHANGELOG.md                     — Version history (Keep a Changelog format)
 ├── INSTALLATION.md                  — Step-by-step setup: helpers (incl. 5 valve slots), card deployment, troubleshooting
-├── hacs.json                        — HACS registry metadata
+├── hacs.json                        — HACS registry metadata (points at root card.yaml)
+├── card.yaml                        — CURRENT card (version-agnostic; install docs link here)
+├── automations.yaml                 — CURRENT rain-cancel automations (version-agnostic)
 ├── .gitignore
 ├── docs/
 │   └── ai-context.md                — This file. AI/Claude reference for repo navigation
 └── releases/
-    ├── v0.1.0/ … v0.3.0/            — Earlier releases (card.yaml + RELEASE_NOTES.md each)
-    └── v0.4.0/
-        ├── card.yaml                — Current Lovelace card YAML (identical to v0.3.0; copy-paste ready)
-        ├── automations.yaml         — Rain-cancel automations (recorder, auto-check, daily reset)
-        └── RELEASE_NOTES.md         — Release-specific notes for v0.4.0
+    ├── v0.1.0/ … v0.4.0/            — Earlier release snapshots (card.yaml + RELEASE_NOTES.md each)
+    └── v0.5.0/
+        ├── card.yaml                — Snapshot of the current card
+        ├── automations.yaml         — Snapshot of the rain-cancel automations
+        └── RELEASE_NOTES.md         — Release notes for v0.5.0
 ```
+
+> The root `card.yaml` / `automations.yaml` are the canonical current files (install docs reference these, no version in the path). Each release also keeps a versioned snapshot under `releases/` for history.
 
 ---
 
@@ -62,9 +66,10 @@ Single `custom:html-template-card` with `ignore_line_breaks: true`. Uses:
 | `input_boolean.garden_winter_shutdown` | Toggle | Seasonal suspension |
 | `input_boolean.garden_rain_cancel` | Toggle | Skip today's run (manual or auto) |
 | `input_number.garden_rain_threshold` | Number (0–100, step 5) | Forecast precipitation % threshold for auto rain cancel |
-| `input_datetime.garden_last_rain` | Date+time | v0.4.0 — last actual-rain onset; powers the 12 h lookback |
+| `input_datetime.garden_last_rain` | Date+time | Last actual-rain onset; powers the 12 h lookback (rain cancel) |
+| `input_datetime.garden_run_started` | Date+time | Stamped at run start by the script; powers the live during-run countdown |
 
-Per-zone active-countdown `timer.*` helpers are deferred to v0.5.0 and not currently created.
+No `timer.*` helpers are used — both countdowns are computed (next-run in Jinja2, during-run client-side from `garden_run_started`).
 
 ### Valve entities
 
@@ -81,23 +86,24 @@ Not hard-coded. Each slot's valve is whatever `switch.*` entity the user stores 
 | `armed == on, rain == on` | Rain skip (blue) | Active (overrides rain) | Struck-through next run + rescheduled date |
 | `armed == on, rain == off, any_day` | Armed (green) | Active | Next run date/time **+ live countdown** (`in 6d 22h 10m`) |
 | `armed == on, no days selected` | Armed (green) | Active | "No days selected" |
-| `script.garden_watering_sequence == on` | — | — | Test button shows "⚫ Running…" |
+| `script.garden_watering_sequence == on` | — | ▶ Start now dims | Status shows **Time remaining** countdown (ticks client-side) |
 
 ---
 
 ## Button behaviour
 
+Header group order: **▶ Start now · ■ Stop · ❄ Winterise · 🌧 Rain · badge**. The **Go** button is full-width in the body (arms the schedule).
+
 | Button | Action when clicked |
 |--------|-------------------|
-| 🌧 (header) | Toggles `input_boolean.garden_rain_cancel` |
-| ▶ Go | `turn_on(armed)` + `turn_off(rain_cancel)`. No-op if winterised. |
-| ❄ Winterise (off→on) | `turn_on(winter_shutdown)` + `turn_off(armed)` |
-| ❄ Winterise (on→off) | `turn_off(winter_shutdown)` |
-| ■ Disarm | `turn_off(armed)` + `turn_off(winter_shutdown)` |
+| ▶ Start now (header) | `script.turn_on(garden_watering_sequence)` — runs immediately. No-op if winterised or already running; lights up (`gws-rb-on`) while running |
+| ■ Stop (header) | `script.turn_off(garden_watering_sequence)` + `homeassistant.turn_off` on **every** configured `garden_valve_N_entity` (templated `{% for valve in vns.valves %}`) + `turn_off(armed)` + `turn_off(winter_shutdown)` |
+| ❄ Winterise (header, off→on) | `turn_on(winter_shutdown)` + `turn_off(armed)` |
+| ❄ Winterise (header, on→off) | `turn_off(winter_shutdown)` |
+| 🌧 Rain (header) | Toggles `input_boolean.garden_rain_cancel` |
+| ▶ Go (body) | `turn_on(armed)` + `turn_off(rain_cancel)`. No-op if winterised. |
 | Duration dot (5/10/15/20) | `input_number.set_value` on that slot's `garden_valve_N_duration` |
 | ✗ dot (per zone) | Sets that slot's `garden_valve_N_duration` to 0 (excludes the zone) |
-| 🔧 Test | `script.turn_on(garden_test_watering)` — 60 s grace countdown, then runs the sequence; dims while running |
-| Cancel this run (v0.5.0) | Stop script + close active valve |
 
 ---
 
@@ -110,7 +116,9 @@ Uses `namespace` to walk 0–7 days ahead from today's weekday (0=Mon, 6=Sun):
 
 A second namespace (`ns2`) calculates the rain-skip "next after" date by always starting from offset 1 (never today).
 
-**Live countdown:** in the same `ns.off >= 0 and any_day` branch, `rem_min = (ns.off*1440 + sh*60 + sm) - (now().hour*60 + now().minute)`, then split into days/hours/minutes with `//` and subtraction (no `%`). Rendered as `in 6d 22h 10m` (days component dropped when < 24h) on a `.gws-skipn` sub-line under the next-run date.
+**Next-run countdown:** in the same `ns.off >= 0 and any_day` branch, `rem_min = (ns.off*1440 + sh*60 + sm) - (now().hour*60 + now().minute)`, then split into days/hours/minutes with `//` and subtraction (no `%`). Rendered as `in 6d 22h 10m` (days component dropped when < 24h) on a `.gws-skipn` sub-line under the next-run date. This one is server-side, so it refreshes on HA's ~per-minute `now()` cadence — fine for a far-off date.
+
+**During-run "Time remaining" countdown (client-side ticker):** when `seq_on`, the template computes `end_ts = run_ts + total_d*60` (where `run_ts = state_attr('input_datetime.garden_run_started','timestamp')`) and renders `<span class="gwscd">MM:SS</span>` (server-side fallback) plus a hidden `<img src="x" onerror="…">`. The `onerror` handler (browser-executed, like the `onclick` handlers) starts a `setInterval(…,1000)` stored on `window.gwsT` that updates the span every second from `end_ts*1000 - Date.now()`. It clears any prior interval first (so re-renders don't stack), self-syncs to `end_ts` on every re-render, and `clearInterval`s at 0. **No `%`/`{%`/`%}` in the JS** — minutes/seconds split via `Math.floor` and subtraction — preserving the `{{%` defensive rule. This is the only way to get true second-by-second ticking inside `html-template-card`, whose content is otherwise re-rendered server-side.
 
 ---
 
@@ -133,8 +141,9 @@ A second namespace (`ns2`) calculates the rain-skip "next after" date by always 
 | `.gws-dot` / `.gws-don2` / `.gws-don-x` | Duration dot — default / selected (blue) / off-dot active (red) |
 | `.gws-dl` | Per-zone duration label (right-aligned, `width:40px` to fit "20 min") |
 | `.gws-bgo` / `.gws-bgo-dim` | Go button — active / disabled |
-| `.gws-tst` / `.gws-tst-busy` | Test button — default (amber) / running (dim) |
 | `.gws-stat` | Status area background box |
+| `.gws-stl` / `.gws-stv` | Status label / value (also used for "Time remaining" + countdown) |
+| `.gwscd` | Countdown span updated by the client-side ticker (no own CSS; inherits `.gws-stv`) |
 | `.gws-skip` / `.gws-skipn` | Rain-skip struck-through date / replacement date & countdown sub-line |
 | `.gws-ntcr` / `.gws-ntcw` | Rain / winter notice box |
 
@@ -144,13 +153,13 @@ A second namespace (`ns2`) calculates the rain-skip "next after" date by always 
 
 ### `script.garden_watering_sequence`
 
-Five slot-based `if/then` steps (one per slot 1–5), run in order. Each step:
+Step 0: `input_datetime.set_datetime` stamps `garden_run_started` with `{{ now().timestamp() | int }}` (powers the during-run countdown). Then five slot-based `if/then` steps (one per slot 1–5), run in order. Each step:
 1. Guard: `numeric_state` on `input_number.garden_valve_N_duration` `above: 0` (skips the slot if 0)
 2. `homeassistant.turn_on` with `entity_id: "{{ states('input_text.garden_valve_N_entity') }}"`
 3. `delay` of `{{ states('input_number.garden_valve_N_duration') | int }}` minutes
 4. `homeassistant.turn_off` on the same templated entity
 
-Mode: `single`. Adding/removing a valve = editing the slot helpers; the script needs no changes (it always covers slots 1–5).
+Mode: `single`. Adding/removing a valve = editing the slot helpers; the script needs no changes (it always covers slots 1–5). The script is started both by the schedule automation and by the card's ▶ Start now button; ■ Stop turns it off and closes valves.
 
 ### `automation.garden_watering_schedule`
 
@@ -191,18 +200,18 @@ Triggers: `time_pattern` minutes 0/30. Conditions: `(now()-30min) HH:MM == start
 | 2 | v0.2.0 ✅ | Scheduling engine — script + automation | 1 script, 1 automation |
 | 3 | v0.3.0 ✅ | Dynamic valve list (1–5 zones), next-run countdown, zone-exclude dot, Test button | 15 valve-slot helpers; script rewritten |
 | 4 | v0.4.0 ✅ | Automatic rain cancel (12 h actual + 24 h forecast, with notification) | 1 input_datetime helper + 3 automations (recorder, auto-check, daily reset) |
-| 5 | v0.5.0 | Active per-zone countdown, progress bar, Cancel this run | Timer integration in card |
+| 5 | v0.5.0 ✅ | ▶ Start now / ■ Stop header controls; client-side ticking Time-remaining countdown (Test button + interim progress bar removed) | 1 input_datetime helper (`garden_run_started`); script stamps it as step 0 |
 | — | v1.0.0 | Full polish + complete docs | None |
 
 ---
 
 ## How to publish a new version
 
-1. Create `releases/vX.Y.Z/` with `card.yaml` and `RELEASE_NOTES.md`
-2. Update `hacs.json` → `"filename"` to point to the new release path
-3. Update `CHANGELOG.md` — move content from `[Unreleased]` to new version section
-4. Update `README.md` versions table to mark the new version complete
-5. Update version comment at top of `card.yaml`
+1. Update the canonical root `card.yaml` (and `automations.yaml` if changed) to the current build
+2. Copy them into a new `releases/vX.Y.Z/` snapshot alongside a `RELEASE_NOTES.md`
+3. `hacs.json` already points at root `card.yaml` — no path change needed per release
+4. Update `CHANGELOG.md` — move content from `[Unreleased]` to the new version section
+5. Update `README.md` versions table to mark the new version complete
 6. Commit: `git commit -m "feat: vX.Y.Z — description"`
 7. Tag: `git tag -a vX.Y.Z -m "vX.Y.Z — description"`
 8. Push: `git push origin master --tags`
@@ -216,7 +225,7 @@ Tell Claude:
 
 Claude should:
 1. Read `docs/ai-context.md` for repo context
-2. Read `releases/vX.Y.Z/card.yaml` for current card source
+2. Read the root `card.yaml` for current card source
 3. Apply the change
 4. Update `CHANGELOG.md` under `[Unreleased]`
 5. Commit and push
@@ -230,5 +239,5 @@ Tell Claude:
 Claude should:
 1. Call `ha_config_get_dashboard(url_path='...')` to locate the target section
 2. Note the `config_hash`
-3. Build the card YAML from the latest `releases/vX.Y.Z/card.yaml` (currently `releases/v0.4.0/card.yaml`)
+3. Build the card YAML from the root `card.yaml`
 4. Call `ha_config_set_dashboard(python_transform='...', config_hash='...')` to insert the card

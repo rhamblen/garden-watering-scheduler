@@ -1,7 +1,7 @@
 {
   "name": "Garden Watering Scheduler Card",
-  "description": "Home Assistant dashboard card for scheduling sequential garden watering — 1–5 configurable valve zones, day/time picker, next-run countdown, rain cancel, and winter shutdown.",
+  "description": "Home Assistant dashboard card for scheduling sequential garden watering — 1–5 configurable valve zones, day/time picker, start-now/stop, live run countdown, automatic rain cancel, and winter shutdown.",
   "render_readme": true,
-  "content_in_root": false,
-  "filename": "releases/v0.4.0/card.yaml"
+  "content_in_root": true,
+  "filename": "card.yaml"
 }

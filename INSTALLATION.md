@@ -275,13 +275,28 @@ Helper type: **Date and/or time** — enable **both** date and time.
 
 Creates `input_datetime.garden_last_rain`. After creating it, set it once to a clearly-old value (e.g. `2020-01-01 00:00`) so it never reads as "rained recently" before the recorder automation first fires. The `Garden Rain Recorder` automation (Step 5) keeps it updated from then on. Skip this helper if you don't want automatic rain cancel.
 
-> You do not need to create any `timer.*` helpers — the card computes the next-run countdown directly in Jinja2.
+---
+
+##### 1p. Run started timestamp (powers the live countdown)
+
+Helper type: **Date and/or time** — enable **both** date and time.
+
+| Field | Value |
+|-------|-------|
+| Name | `Garden Run Started` |
+| Date | ✅ enabled |
+| Time | ✅ enabled |
+| Icon | `mdi:play-circle-outline` |
+
+Creates `input_datetime.garden_run_started`. The watering script stamps this with the current time as its first step; the card reads it to drive the live **Time remaining** countdown during a run. Create it before running a sequence.
+
+> You do not need to create any `timer.*` helpers — the next-run countdown is computed in Jinja2, and the during-run countdown ticks client-side from this timestamp.
 
 ---
 
 #### Step 2 — Add the card to your dashboard
 
-1. Download [`releases/v0.4.0/card.yaml`](releases/v0.4.0/card.yaml)
+1. Download [`card.yaml`](card.yaml)
 2. Open your Lovelace dashboard → click the pencil (edit) icon
 3. Click **+ Add card** in the target section
 4. Scroll to the bottom and choose **Manual card**
@@ -294,15 +309,15 @@ Creates `input_datetime.garden_last_rain`. After creating it, set it once to a c
 
 The card should show:
 
-- **GARDEN WATERING** title with ❄ / ■ / 🌧 buttons and Disarmed badge in the header
+- **GARDEN WATERING** title with ▶ / ■ / ❄ / 🌧 buttons and Disarmed badge in the header
 - **Day buttons** M T W T F S S — tap to toggle green
 - **Start time** stepper showing the current `input_select` value
 - **Total run** showing the summed duration of all active zones
 - **Zone duration** rows — one row per configured valve slot, each with a red ✗ (off) dot plus 5/10/15/20-minute dots
-- **Go** and **Test** buttons
+- **Go** button (arms the schedule)
 - **"Press Go to arm the schedule"** in the status area
 
-Tap **Go** — badge changes to Armed and the status shows the next run date with a live countdown (`in 6d 22h 10m`).
+Tap **Go** — badge changes to Armed and the status shows the next run date with a live countdown (`in 6d 22h 10m`). Tap **▶ Start now** in the header to run a sequence immediately and watch the **Time remaining** countdown; **■ Stop** halts it and closes all valves.
 
 > Only slots whose **entity** helper is filled appear as zone rows. If you see fewer rows than expected, check the `input_text.garden_valve_N_entity` helpers.
 
@@ -310,7 +325,7 @@ Tap **Go** — badge changes to Armed and the status shows the next run date wit
 
 #### Step 4 — Watering script and schedule automation
 
-The watering script (`script.garden_watering_sequence`) and the time-pattern automation that triggers it are created automatically by the Claude-assisted install (Option A). If you installed manually, create them from the definitions in the repo, or ask Claude to add them. Use the **Test** button on the card to run the full sequence on demand once they exist.
+The watering script (`script.garden_watering_sequence`) and the time-pattern automation that triggers it are created automatically by the Claude-assisted install (Option A). If you installed manually, create them from the definitions in the repo, or ask Claude to add them. Use the **▶ Start now** button in the card header to run the full sequence on demand once they exist; **■ Stop** halts a run and closes all valves.
 
 ---
 
@@ -354,7 +369,7 @@ If **either** signal says rain, the run is cancelled.
 
 ##### 5c. Create the three automations
 
-Open [`releases/v0.4.0/automations.yaml`](releases/v0.4.0/automations.yaml). It contains three automations:
+Open [`automations.yaml`](automations.yaml). It contains three automations:
 
 | Automation | Fires | Does |
 |-----------|-------|------|

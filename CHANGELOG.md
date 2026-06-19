@@ -8,9 +8,28 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-- v0.5.0 — active per-zone countdown, progress bar, Cancel this run
 - Dual-card support — second helper namespace for independent schedules
 - Design review — pool fill target max vs default; valve-card timer handoff vs self-managed delay
+
+---
+
+## [0.5.0] — 2026-06-19
+
+### Added
+- **▶ Start now (header)** — runs `script.garden_watering_sequence` immediately, independent of the schedule, so a sequence can be triggered outside the scheduled start time. Disabled while a run is in progress or while winterised.
+- **■ Stop (header)** — halts an active run: turns off the sequence script, closes every configured valve (`homeassistant.turn_off` on each `garden_valve_N_entity`), then disarms the schedule.
+- **Live "Time remaining" countdown** — during a run the status area shows a countdown that ticks **client-side every second** rather than on HA's ~per-minute `now()` refresh. The script stamps `input_datetime.garden_run_started` as its first step; the card computes the run-end timestamp and a small in-browser interval counts down to it.
+- **`input_datetime.garden_run_started`** helper — records run start; powers the countdown.
+
+### Changed
+- **Header control set is now** ▶ Start now · ■ Stop · ❄ Winterise · 🌧 Rain · status badge.
+- **Manual install is version-agnostic** — `card.yaml` and `automations.yaml` now live at the repo root (always the current build) and the docs link to those rather than a versioned `releases/…` path. `hacs.json` points to the root `card.yaml`. Versioned snapshots are still kept under `releases/` for history.
+
+### Removed
+- **Test button** (and its `script.garden_test_watering` reference), the interim in-card progress bar, and the now-unused `.gws-tst` / `.gws-pb*` CSS — all superseded by ▶ Start now and the ticking countdown.
+
+### Notes
+- The countdown ticker reuses the card's existing inline-JS mechanism (an `img onerror` handler, same family as the `onclick` buttons), so it adds no dependency. It re-syncs to the run-end timestamp on every card re-render and self-clears at `0:00`. No `%`/`{%`/`%}` appears in the JS, preserving the card's defensive Jinja templating.
 
 ---
 
