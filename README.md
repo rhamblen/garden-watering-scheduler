@@ -6,6 +6,21 @@ A Home Assistant Lovelace dashboard card that schedules sequential garden wateri
 
 ---
 
+> ## ⚠️ Want more than one schedule? Do **not** copy the card.
+>
+> Each card is just a view over a **shared set of `garden_*` helpers**. Dropping a second
+> copy of the same card on your dashboard shows the **same** schedule twice — both copies
+> read and write the identical helpers and trigger the same run. Changing the days on one
+> changes them on the other.
+>
+> To run a genuinely **independent** second schedule (its own days, start time, and zones)
+> you must install a **separate card backed by its own namespaced helpers** (`garden_b_*`),
+> plus its own script and automation. A ready-made two-schedule bundle ships in
+> [`multi-schedule/`](multi-schedule/) — see **[INSTALLATION.md](INSTALLATION.md) → Adding a
+> second schedule**.
+
+---
+
 ## Features
 
 - **Day selector** — toggle any combination of Mon–Sun
@@ -20,6 +35,7 @@ A Home Assistant Lovelace dashboard card that schedules sequential garden wateri
 - **Rain cancel** — 🌧 header button skips today's run manually; automatic rain detection cancels a run when it rained in the last 12 h or rain is forecast in the next 24 h, and posts a notification
 - **Next run display** — calculated live in Jinja2; shows the actual next scheduled date and time, with a live countdown (`in 6d 22h 10m`)
 - **Five card states** — Disarmed / Armed / Rain skip / Winterised / Running
+- **Multiple independent schedules** — run more than one schedule (e.g. an early lawn run and a later veg-bed run) by installing additional **namespaced** cards (`garden_a_*`, `garden_b_*`, …). Each has its own days, time, and zones; rain cancel and winterise stay house-wide. Overlapping runs follow a FIFO single-valve cap (only one valve open at a time). See [INSTALLATION.md](INSTALLATION.md) → *Adding a second schedule* — and note you must **install a second card, not copy the first**
 - **HA theme aware** — uses CSS variables for colours
 
 ---
@@ -34,6 +50,7 @@ A Home Assistant Lovelace dashboard card that schedules sequential garden wateri
 | v0.3.0 | ✅ | Dynamic valve list (1–5 zones), next-run countdown, zone-exclude dot, Test button |
 | v0.4.0 | ✅ | Automatic rain cancel — 12 h actual + 24 h forecast check, with notification |
 | v0.5.0 | ✅ | Start-now / Stop header controls, live ticking time-remaining countdown (Test button removed) |
+| Unreleased | 🔜 | Multiple independent schedules (namespaced `garden_a_*` / `garden_b_*`), FIFO single-valve cap, shared rain + winterise — see [`multi-schedule/`](multi-schedule/) |
 | v1.0.0 | planned | Full release — polish, complete docs |
 
 ---

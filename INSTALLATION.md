@@ -400,6 +400,119 @@ That's it — the probability scan inside the check is provider-agnostic and nee
 
 ---
 
+## Adding a second schedule (independent)
+
+> ### ⚠️ Do not duplicate the card
+> A second copy of the same card is **not** a second schedule. Every card reads and writes the
+> same `garden_*` helpers, so two copies control **one** schedule — edit the days on one and they
+> change on the other. An independent schedule needs its **own namespaced helpers**, its **own**
+> script + automation, and its **own** card.
+
+The repo ships a ready-made two-schedule bundle in **[`multi-schedule/`](multi-schedule/)**:
+`card-a.yaml`, `card-b.yaml`, `scripts.yaml`, `schedule-automations.yaml`,
+`rain-automations.yaml`, plus [`helpers.md`](multi-schedule/helpers.md) and a
+[`README`](multi-schedule/README.md).
+
+**How it works.** Per-schedule state is **namespaced** — schedule A uses `garden_a_*`, schedule B
+uses `garden_b_*` (days, start time, valve slots 1–5, armed flag, run-started stamp, one script,
+one automation each). The following stay **shared house-wide**, one instance for all schedules:
+`garden_rain_cancel`, `garden_rain_threshold`, `garden_last_rain` (and the rain automations),
+`garden_winter_shutdown`, and the weather entity. Winterise once on any card and every schedule is
+suspended. Overlapping runs follow a **FIFO single-valve cap**: at most one valve open system-wide,
+first command wins, a later overlapping zone is dropped for that run (never queued). Full rationale:
+[`docs/design-multiple-schedules.md`](docs/design-multiple-schedules.md).
+
+---
+
+### Option A — Ask Claude (recommended)
+
+> "Add a second independent schedule to my Garden Watering Scheduler using the multi-schedule
+> bundle at https://github.com/rhamblen/garden-watering-scheduler (the `multi-schedule/` folder).
+> Migrate my current single schedule into the `garden_a_*` namespace (keep my existing days, start
+> time, and valves), create a fresh `garden_b_*` schedule, install both sequence scripts and both
+> schedule automations, update the three shared rain automations to cover both schedules, and add
+> the second card (B) next to my existing one. Keep rain cancel and winterise shared."
+
+Claude will: rename your existing `garden_*` helpers to `garden_a_*` (preserving their values),
+create the 25 `garden_b_*` helpers, install `script.garden_a_watering_sequence` /
+`script.garden_b_watering_sequence` (each with the single-valve cap guard) and
+`automation.garden_a_watering_schedule` / `automation.garden_b_watering_schedule`, generalise the
+three rain automations, remove the old single-schedule script + automation, and deploy the **(A)**
+and **(B)** cards side by side.
+
+Already on two schedules and want a third? Ask the same way for a `garden_c_*` schedule — Claude
+will also extend the cap-guard namespace list (see the note at the end of Option B).
+
+---
+
+### Option B — Manual
+
+**Step 1 — Migrate your existing schedule to the `a` namespace.** So both schedules are symmetric
+(`garden_a_*` / `garden_b_*`), first rename your current per-schedule helpers. At
+**Settings → Devices & Services → Helpers**, open each helper → ⚙️ → change its **Entity ID**:
+
+| Rename these (×25) | From | To |
+|---|---|---|
+| Day toggles (×7) | `input_boolean.garden_water_mon … _sun` | `input_boolean.garden_a_water_mon … _sun` |
+| Start time | `input_select.garden_water_start_time` | `input_select.garden_a_water_start_time` |
+| Valve entity (×5) | `input_text.garden_valve_N_entity` | `input_text.garden_a_valve_N_entity` |
+| Valve name (×5) | `input_text.garden_valve_N_name` | `input_text.garden_a_valve_N_name` |
+| Valve duration (×5) | `input_number.garden_valve_N_duration` | `input_number.garden_a_valve_N_duration` |
+| Schedule armed | `input_boolean.garden_schedule_armed` | `input_boolean.garden_a_schedule_armed` |
+| Run started | `input_datetime.garden_run_started` | `input_datetime.garden_a_run_started` |
+
+> **Leave the shared helpers unchanged** — `input_boolean.garden_winter_shutdown`,
+> `input_boolean.garden_rain_cancel`, `input_number.garden_rain_threshold`,
+> `input_datetime.garden_last_rain`. Renaming preserves each helper's current value and history.
+
+**Step 2 — Create the 25 `garden_b_*` helpers.** Same types/ranges as the originals (full list in
+[`multi-schedule/helpers.md`](multi-schedule/helpers.md)). **Fill in B's valve entity + name slots**
+with the valves this schedule controls — the same switches as A, or a subset (e.g. set
+`input_text.garden_b_valve_1_entity` = `switch.tap_lhs_upper_lawn_blue`, name `Upper lawn`). You can
+leave the **durations** at `0` and the day toggles off so B is visible but waters nothing until you
+set them on the card.
+
+> ⚠️ **A slot with a blank entity renders no zone row** — so the card would show no valves to select.
+> Populate each `garden_b_valve_N_entity` (and `_name`) for every zone you want to appear, even if its
+> duration starts at 0. (Set the value via the helper's UI, or `input_text.set_value`.)
+
+**Step 3 — Install the two sequence scripts** from [`multi-schedule/scripts.yaml`](multi-schedule/scripts.yaml)
+(`script.garden_a_watering_sequence`, `script.garden_b_watering_sequence`). Each runs its own
+`garden_X_valve_*` zones and carries the **single-valve cap guard** that skips a zone if any garden
+valve is already on.
+
+**Step 4 — Install the two schedule automations** from
+[`multi-schedule/schedule-automations.yaml`](multi-schedule/schedule-automations.yaml). Each adds an
+explicit `garden_winter_shutdown == off` condition so ❄ on either card suspends both schedules.
+
+**Step 5 — Replace your three rain automations** with
+[`multi-schedule/rain-automations.yaml`](multi-schedule/rain-automations.yaml) (set your `weather.*`
+entity in the two `# << SET WEATHER ENTITY` spots). The recorder is unchanged; the auto-cancel check
+now fires 30 min before **either** schedule's start; the daily reset clears 30 min after the
+**latest** of the two.
+
+**Step 6 — Remove the old single-schedule objects:** `script.garden_watering_sequence` and
+`automation.garden_watering_schedule` (superseded by the A/B versions).
+
+**Step 7 — Deploy the cards.** Replace your existing scheduler card's YAML with
+[`multi-schedule/card-a.yaml`](multi-schedule/card-a.yaml), then add a **second Manual card** with
+[`multi-schedule/card-b.yaml`](multi-schedule/card-b.yaml). (The `garden_a_*`/`garden_b_*`
+find-replace and the per-card `window.gwsT_a`/`window.gwsT_b` countdown-timer namespacing are already
+baked into those two files — that timer rename is essential, or two cards on one page fight over one
+countdown.)
+
+---
+
+### Adding a third (or more) schedule
+
+Repeat Steps 2–4 and 7 for a `garden_c_*` namespace (new helpers, script, automation, card). The
+**only** cross-schedule edit: extend the namespace list `['a','b']` to `['a','b','c']` in two places —
+the cap-guard template inside **every** sequence script, and the two templated rain automations
+(auto-cancel check + daily reset). For ~4+ schedules, consider graduating to a fully parameterised
+"schedule slot" model instead of named clones (see `docs/design-multiple-schedules.md`).
+
+---
+
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
@@ -417,3 +530,7 @@ That's it — the probability scan inside the check is provider-agnostic and nee
 | Rain check cancels every day | `garden_last_rain` left at a recent value, or threshold too low | Set `input_datetime.garden_last_rain` to an old date (e.g. `2020-01-01`); raise `input_number.garden_rain_threshold` |
 | Rain skip never clears | Reset automation missing or start time changed mid-day | Confirm `Garden Rain Cancel Daily Reset` exists; it clears 30 min after the start time |
 | "Rained recently" never triggers | Recorder automation not firing | Check `Garden Rain Recorder`'s trigger entity matches your weather entity; it only stamps when the condition actually turns to rain |
+| Two schedule cards change together | You copied the card instead of installing a namespaced second one | Both cards point at the same helpers. Install a real second schedule — see *Adding a second schedule* (each card needs its own `garden_a_*` / `garden_b_*` helpers) |
+| Second card's run countdown is wrong / two cards' timers fight | The client-side `window.gwsT` timer global wasn't namespaced per card | Use `card-b.yaml` from `multi-schedule/` (it uses `window.gwsT_b`); never hand-copy card A's content for card B |
+| A schedule won't run while the other (or a manual/pool valve) is open | Working as designed — single-valve cap | Only one garden valve runs at a time. The later/overlapping zone is skipped for that run; it is not queued |
+| ❄ Winterise on one card doesn't stop the other schedule | Schedule automations missing the shared winter condition | Ensure both `automation.garden_a/b_watering_schedule` include `input_boolean.garden_winter_shutdown` `== off` (the `multi-schedule/` versions do) |

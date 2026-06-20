@@ -8,8 +8,48 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-- Dual-card support — second helper namespace for independent schedules
-- Design review — pool fill target max vs default; valve-card timer handoff vs self-managed delay
+### In progress — multiple independent schedules (A & B)
+
+First build of Option 3 hybrid namespace, **two schedules** (`garden_a_*` /
+`garden_b_*`). Repo files under `multi-schedule/`; **deployed live** on the My Home
+dashboard (singleton `garden_*` helpers renamed → `garden_a_*` preserving values, 25
+`garden_b_*` created fresh, both scripts + automations installed, the 3 rain automations
+generalised, old single-schedule script + automation removed, cards A & B deployed side by
+side). The deferred meter / winterise-drain / leak-detection parts are **not** included.
+README + INSTALLATION (with an "Adding a second schedule" section) + `docs/ai-context.md`
+updated. See `multi-schedule/README.md` and `docs/design-multiple-schedules.md`.
+
+- **Per-schedule (namespaced):** day toggles, start time, valve slots 1–5,
+  armed flag, run-started stamp, one sequence script + one schedule automation
+  each (`multi-schedule/scripts.yaml`, `schedule-automations.yaml`,
+  `card-a.yaml`, `card-b.yaml`).
+- **Shared (house-wide, single instance):** rain cancel + threshold + last-rain
+  and the rain automations, winter shutdown, weather entity.
+- **Overlap policy — FIFO, single-valve cap:** each sequence script guards every
+  `turn_on` with "no garden valve currently on across both schedules (and
+  manual/pool opens)". First command wins; a later overlapping zone is dropped
+  for that run, not queued. Turn-off always wins; no re-asserting. Enforced from
+  live switch state — no lock entity.
+- **Winterise stays house-wide:** ❄ on either card sets the shared
+  `garden_winter_shutdown`; both schedule automations gain an explicit
+  `winter_shutdown == off` condition so one winterise suspends every schedule
+  regardless of each card's armed state.
+- **Shared rain automations generalised:** recorder unchanged; auto-cancel check
+  fires 30 min before *either* schedule's start; daily reset clears 30 min after
+  the *latest* of the two start times (`multi-schedule/rain-automations.yaml`).
+- **Card namespacing:** entity ids find-replaced to `garden_a_*` / `garden_b_*`;
+  the client-side countdown global `window.gwsT` namespaced to `window.gwsT_a` /
+  `_b` to avoid two cards clashing; titles tagged `(A)` / `(B)`. Shared helpers
+  (`garden_rain_cancel`, `garden_winter_shutdown`, `garden_rain_threshold`,
+  `garden_last_rain`) left untouched.
+
+### Deferred (recorded in the design doc, not built here)
+
+- Master meter-valve linkage: two-part winterise model, drain sequencing
+  (close-zones-before-supply), leak detection. Likely to be owned by the meter
+  project — see `docs/design-multiple-schedules.md`.
+- Design review — pool fill target max vs default; valve-card timer handoff vs
+  self-managed delay.
 
 ---
 

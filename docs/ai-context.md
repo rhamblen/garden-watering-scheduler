@@ -27,7 +27,15 @@ Same tech stack. Defines the valve entities this scheduler uses. Reference for C
 ├── automations.yaml                 — CURRENT rain-cancel automations (version-agnostic)
 ├── .gitignore
 ├── docs/
-│   └── ai-context.md                — This file. AI/Claude reference for repo navigation
+│   ├── ai-context.md                — This file. AI/Claude reference for repo navigation
+│   └── design-multiple-schedules.md — Agreed design for independent schedules (Option 3 hybrid + FIFO)
+├── multi-schedule/                  — [Unreleased] two-schedule bundle (A & B)
+│   ├── README.md                    — Bundle overview + install order
+│   ├── helpers.md                   — 50 per-schedule helpers, shared list, singleton→A migration
+│   ├── card-a.yaml / card-b.yaml    — Namespaced clones of card.yaml (garden_a_* / garden_b_*)
+│   ├── scripts.yaml                 — script.garden_a/b_watering_sequence (with single-valve cap guard)
+│   ├── schedule-automations.yaml    — automation.garden_a/b_watering_schedule (+ shared winter-off cond)
+│   └── rain-automations.yaml        — 3 shared rain automations generalised to both schedules
 └── releases/
     ├── v0.1.0/ … v0.4.0/            — Earlier release snapshots (card.yaml + RELEASE_NOTES.md each)
     └── v0.5.0/
@@ -192,6 +200,66 @@ Triggers: `time_pattern` minutes 0/30. Conditions: `(now()-30min) HH:MM == start
 
 ---
 
+## Multiple independent schedules (`multi-schedule/`)
+
+Status: `[Unreleased]`. Two independent schedules built on **Option 3 hybrid namespace** + a
+**FIFO single-valve** overlap policy. Design rationale: `docs/design-multiple-schedules.md`.
+Bundle: `multi-schedule/` — `card-a.yaml`, `card-b.yaml`, `scripts.yaml`,
+`schedule-automations.yaml`, `rain-automations.yaml`, `helpers.md`, `README.md`.
+
+### Namespacing
+- **Per-schedule (`garden_a_*` / `garden_b_*`):** 7 day toggles, start time, valve slots 1–5
+  (entity/name/duration), `schedule_armed`, `run_started` stamp; one
+  `script.garden_X_watering_sequence` + one `automation.garden_X_watering_schedule` each.
+- **Shared house-wide (single instance, NOT namespaced):** `garden_rain_cancel`,
+  `garden_rain_threshold`, `garden_last_rain` + the 3 rain automations; `garden_winter_shutdown`;
+  the weather entity.
+
+### Single-valve cap (FIFO) — the key new logic
+Every `homeassistant.turn_on` in each sequence script is guarded by a template that is true only
+when **no** garden valve is currently on across **both** namespaces' `*_valve_N_entity` (so
+manual/pool opens hold the slot too). The whole zone block (turn_on + delay + turn_off) is wrapped,
+so a blocked zone is **skipped, not queued**. First command wins; off always wins; scripts never
+re-assert — no lock entity. The guard hardcodes the namespace list `['a','b']`; **extend it per new
+schedule** (the only cross-schedule edit besides the rain templates).
+
+### Schedule-automation change vs single-schedule
+Both `automation.garden_X_watering_schedule` carry an explicit
+`input_boolean.garden_winter_shutdown == off` condition. The single-schedule design relied on ❄
+disarming the one schedule; per-schedule armed flags break that, so the shared ❄ flag is now a hard
+condition on every schedule (winterise once → all suspended).
+
+### Rain automations, generalised (recorder unchanged)
+- **Auto-cancel check:** singleton armed+start+day gate replaced by an **OR across both schedules**
+  (fires 30 min before *either* due schedule); still only ever turns the shared flag **on**.
+- **Daily reset:** clears 30 min after the **latest** of the schedules' start times (a rainy day
+  skips both an early and a late run before clearing).
+- Weather entity preserved on the live install: `weather.met_office_fleet`.
+
+### Card namespacing (find-replace from `card.yaml`)
+`input_boolean.garden_water_` → `…garden_a_water_`; `input_select.garden_water_start_time` →
+`…garden_a_water_start_time`; `input_text.garden_valve_` / `input_number.garden_valve_` →
+`…garden_a_valve_`; `garden_schedule_armed` → `garden_a_schedule_armed`;
+`script.garden_watering_sequence` → `script.garden_a_watering_sequence`;
+`input_datetime.garden_run_started` → `…garden_a_run_started`; **`window.gwsT` → `window.gwsT_a`**
+(the client-side countdown global — MUST be namespaced or two cards on one page collide); title
+`Garden watering (A)`. Same set with `b`. Shared helper names left untouched. No `{%`/`%}`
+introduced — preserves the `{{%` defensive-templating rule.
+
+### As-built / migration (live on My Home)
+Singleton `garden_*` helpers renamed → `garden_a_*` (values + history preserved via entity-registry
+rename); 25 `garden_b_*` created fresh (blank, durations 0). Old `script.garden_watering_sequence` +
+`automation.garden_watering_schedule` removed. Cards live at **My Home → Garden → "Garden Watering
+Schedules"** (`views[5].sections[9].cards[1]` = A, `cards[2]` = B; section heading retitled to plural).
+Dashboard edit done as a server-side string transform of the existing card (→ A) plus an appended
+copy (→ B), so the deployed cards match the `multi-schedule/` files exactly.
+
+### Deferred (NOT built — recorded in the design doc)
+Master meter-valve linkage, two-part winterise model, drain sequencing
+(close-zones-before-supply), leak detection. Likely owned by the meter project later.
+
+---
+
 ## Build phases
 
 | Phase | Version | Feature | HA additions required |
@@ -201,6 +269,7 @@ Triggers: `time_pattern` minutes 0/30. Conditions: `(now()-30min) HH:MM == start
 | 3 | v0.3.0 ✅ | Dynamic valve list (1–5 zones), next-run countdown, zone-exclude dot, Test button | 15 valve-slot helpers; script rewritten |
 | 4 | v0.4.0 ✅ | Automatic rain cancel (12 h actual + 24 h forecast, with notification) | 1 input_datetime helper + 3 automations (recorder, auto-check, daily reset) |
 | 5 | v0.5.0 ✅ | ▶ Start now / ■ Stop header controls; client-side ticking Time-remaining countdown (Test button + interim progress bar removed) | 1 input_datetime helper (`garden_run_started`); script stamps it as step 0 |
+| — | Unreleased ✅ (deployed) | Multiple independent schedules — namespaced `garden_a_*` / `garden_b_*`, FIFO single-valve cap, shared rain + winterise (`multi-schedule/`) | 50 helpers (25 per schedule), 2 scripts, 2 schedule automations, 3 rain automations generalised, 2 cards |
 | — | v1.0.0 | Full polish + complete docs | None |
 
 ---
