@@ -223,6 +223,12 @@ so a blocked zone is **skipped, not queued**. First command wins; off always win
 re-assert — no lock entity. The guard hardcodes the namespace list `['a','b']`; **extend it per new
 schedule** (the only cross-schedule edit besides the rain templates).
 
+**Settle delay (v0.6.1).** Each zone ends with a `delay: {seconds: 10}` **after** its
+`turn_off`. A Zigbee valve does not report `off` to HA instantly, so without the gap the
+next zone's cap guard still sees the just-closed valve as `on` and skips that zone (symptom:
+"second valve didn't open"). The 10 s lets the state propagate. Side effect: the card's
+during-run countdown (sum of durations only) finishes ~10 s/zone before the script does.
+
 ### Schedule-automation change vs single-schedule
 Both `automation.garden_X_watering_schedule` carry an explicit
 `input_boolean.garden_winter_shutdown == off` condition. The single-schedule design relied on ❄
@@ -270,6 +276,7 @@ Master meter-valve linkage, two-part winterise model, drain sequencing
 | 4 | v0.4.0 ✅ | Automatic rain cancel (12 h actual + 24 h forecast, with notification) | 1 input_datetime helper + 3 automations (recorder, auto-check, daily reset) |
 | 5 | v0.5.0 ✅ | ▶ Start now / ■ Stop header controls; client-side ticking Time-remaining countdown (Test button + interim progress bar removed) | 1 input_datetime helper (`garden_run_started`); script stamps it as step 0 |
 | 6 | v0.6.0 ✅ | Multiple independent schedules — namespaced `garden_a_*` / `garden_b_*`, FIFO single-valve cap, shared rain + winterise (`multi-schedule/`) | 50 helpers (25 per schedule), 2 scripts, 2 schedule automations, 3 rain automations generalised, 2 cards |
+| 6.1 | v0.6.1 ✅ | Bug fix — 10 s settle delay after each `turn_off` so the next zone isn't skipped by the cap guard while a just-closed Zigbee valve still reads `on` | Both sequence scripts updated |
 | — | v1.0.0 | Full polish + complete docs | None |
 
 ---

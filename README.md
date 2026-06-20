@@ -51,6 +51,7 @@ A Home Assistant Lovelace dashboard card that schedules sequential garden wateri
 | v0.4.0 | ✅ | Automatic rain cancel — 12 h actual + 24 h forecast check, with notification |
 | v0.5.0 | ✅ | Start-now / Stop header controls, live ticking time-remaining countdown (Test button removed) |
 | v0.6.0 | ✅ | Multiple independent schedules (namespaced `garden_a_*` / `garden_b_*`), FIFO single-valve cap, shared rain + winterise — see [`multi-schedule/`](multi-schedule/) |
+| v0.6.1 | ✅ | Bug fix — 10 s settle delay after each valve closes, so the next zone isn't skipped while a just-closed Zigbee valve still reads `on` |
 | v1.0.0 | planned | Full release — polish, complete docs |
 
 ---

@@ -18,6 +18,23 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.6.1] — 2026-06-20
+
+### Fixed
+- **Second (and subsequent) zone skipped mid-run** — each sequence script now waits
+  **10 s after every `turn_off`** before the next zone's single-valve cap guard runs. A
+  Zigbee valve does not report `off` to HA instantly, so the next zone's guard could still
+  see the just-closed valve as `on` and skip that zone (symptom: "the second valve didn't
+  open"). The settle delay lets the state propagate so the following valve opens
+  (`multi-schedule/scripts.yaml`).
+
+### Note
+- The card's during-run "Time remaining" countdown sums only the watering durations, so it
+  now reaches `0:00` roughly 10 s × (number of zones) before the script actually finishes.
+  Cosmetic only.
+
+---
+
 ## [0.6.0] — 2026-06-20
 
 ### Added
