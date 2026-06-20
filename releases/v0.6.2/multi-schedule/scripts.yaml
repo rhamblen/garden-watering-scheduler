@@ -1,0 +1,298 @@
+# Garden Watering Scheduler — Multi-schedule sequence scripts (A & B)
+# Repository: https://github.com/rhamblen/garden-watering-scheduler
+# =========================================================================
+# Two namespaced clones of the single-schedule script.garden_watering_sequence,
+# one per independent schedule (garden_a_* and garden_b_*).
+#
+# Each script:
+#   1. Stamps its own input_datetime.garden_X_run_started (powers the card's
+#      during-run "Time remaining" countdown).
+#   2. Runs valve slots 1..5 in order: a slot with duration 0 is skipped.
+#
+# NEW vs single-schedule: SINGLE-VALVE CAP (FIFO overlap policy).
+#   Before opening a zone, a guard checks that NO garden valve is currently on
+#   anywhere — across BOTH schedules' configured *_valve_N_entity helpers AND
+#   any manual/pool open of those same valves. If one is on, the whole zone
+#   block (turn_on + delay + turn_off) is skipped — the zone is dropped for this
+#   run, never queued. This enforces "one valve open system-wide, first command
+#   wins, off always wins, no re-asserting" using live switch state only — no
+#   lock entity. (See docs/design-multiple-schedules.md.)
+#
+#   The guard template lists namespaces ['a','b']; add more here AND in the
+#   sibling script if you ever add a schedule C/D.
+#
+# SETTLE DELAY: each zone ends with a 10-second delay AFTER its turn_off. A
+#   Zigbee valve does not report 'off' to HA instantly, so without this gap the
+#   next zone's cap guard could still see the just-closed valve as 'on' and skip
+#   that zone. The 10 s lets the state propagate so the following zone opens.
+#
+# Install as two separate scripts (Settings → Automations & Scenes → Scripts,
+# or via the HA API). Both are mode: single.
+# =========================================================================
+
+# -------------------------------------------------------------------------
+# SCHEDULE A — script.garden_a_watering_sequence
+# -------------------------------------------------------------------------
+garden_a_watering_sequence:
+  alias: Garden Watering Sequence A
+  description: >-
+    Schedule A. Runs configured valve slots 1..5 in order, each for its set
+    duration, honouring the system-wide single-valve cap (skips a zone if any
+    garden valve is already on).
+  icon: mdi:sprinkler
+  mode: single
+  sequence:
+    - action: input_datetime.set_datetime
+      target:
+        entity_id: input_datetime.garden_a_run_started
+      data:
+        timestamp: "{{ now().timestamp() | int }}"
+    - if:
+        - condition: numeric_state
+          entity_id: input_number.garden_a_valve_1_duration
+          above: 0
+        - condition: template
+          value_template: >-
+            {% set busy = namespace(any=false) %}
+            {% for nsp in ['a','b'] %}{% for n in [1,2,3,4,5] %}
+              {% set e = states('input_text.garden_' ~ nsp ~ '_valve_' ~ n ~ '_entity') %}
+              {% if e not in ['','unknown','unavailable'] and is_state(e,'on') %}{% set busy.any = true %}{% endif %}
+            {% endfor %}{% endfor %}
+            {{ not busy.any }}
+      then:
+        - action: homeassistant.turn_on
+          data:
+            entity_id: "{{ states('input_text.garden_a_valve_1_entity') }}"
+        - delay:
+            minutes: "{{ states('input_number.garden_a_valve_1_duration') | int }}"
+        - action: homeassistant.turn_off
+          data:
+            entity_id: "{{ states('input_text.garden_a_valve_1_entity') }}"
+        - delay:
+            seconds: 10
+    - if:
+        - condition: numeric_state
+          entity_id: input_number.garden_a_valve_2_duration
+          above: 0
+        - condition: template
+          value_template: >-
+            {% set busy = namespace(any=false) %}
+            {% for nsp in ['a','b'] %}{% for n in [1,2,3,4,5] %}
+              {% set e = states('input_text.garden_' ~ nsp ~ '_valve_' ~ n ~ '_entity') %}
+              {% if e not in ['','unknown','unavailable'] and is_state(e,'on') %}{% set busy.any = true %}{% endif %}
+            {% endfor %}{% endfor %}
+            {{ not busy.any }}
+      then:
+        - action: homeassistant.turn_on
+          data:
+            entity_id: "{{ states('input_text.garden_a_valve_2_entity') }}"
+        - delay:
+            minutes: "{{ states('input_number.garden_a_valve_2_duration') | int }}"
+        - action: homeassistant.turn_off
+          data:
+            entity_id: "{{ states('input_text.garden_a_valve_2_entity') }}"
+        - delay:
+            seconds: 10
+    - if:
+        - condition: numeric_state
+          entity_id: input_number.garden_a_valve_3_duration
+          above: 0
+        - condition: template
+          value_template: >-
+            {% set busy = namespace(any=false) %}
+            {% for nsp in ['a','b'] %}{% for n in [1,2,3,4,5] %}
+              {% set e = states('input_text.garden_' ~ nsp ~ '_valve_' ~ n ~ '_entity') %}
+              {% if e not in ['','unknown','unavailable'] and is_state(e,'on') %}{% set busy.any = true %}{% endif %}
+            {% endfor %}{% endfor %}
+            {{ not busy.any }}
+      then:
+        - action: homeassistant.turn_on
+          data:
+            entity_id: "{{ states('input_text.garden_a_valve_3_entity') }}"
+        - delay:
+            minutes: "{{ states('input_number.garden_a_valve_3_duration') | int }}"
+        - action: homeassistant.turn_off
+          data:
+            entity_id: "{{ states('input_text.garden_a_valve_3_entity') }}"
+        - delay:
+            seconds: 10
+    - if:
+        - condition: numeric_state
+          entity_id: input_number.garden_a_valve_4_duration
+          above: 0
+        - condition: template
+          value_template: >-
+            {% set busy = namespace(any=false) %}
+            {% for nsp in ['a','b'] %}{% for n in [1,2,3,4,5] %}
+              {% set e = states('input_text.garden_' ~ nsp ~ '_valve_' ~ n ~ '_entity') %}
+              {% if e not in ['','unknown','unavailable'] and is_state(e,'on') %}{% set busy.any = true %}{% endif %}
+            {% endfor %}{% endfor %}
+            {{ not busy.any }}
+      then:
+        - action: homeassistant.turn_on
+          data:
+            entity_id: "{{ states('input_text.garden_a_valve_4_entity') }}"
+        - delay:
+            minutes: "{{ states('input_number.garden_a_valve_4_duration') | int }}"
+        - action: homeassistant.turn_off
+          data:
+            entity_id: "{{ states('input_text.garden_a_valve_4_entity') }}"
+        - delay:
+            seconds: 10
+    - if:
+        - condition: numeric_state
+          entity_id: input_number.garden_a_valve_5_duration
+          above: 0
+        - condition: template
+          value_template: >-
+            {% set busy = namespace(any=false) %}
+            {% for nsp in ['a','b'] %}{% for n in [1,2,3,4,5] %}
+              {% set e = states('input_text.garden_' ~ nsp ~ '_valve_' ~ n ~ '_entity') %}
+              {% if e not in ['','unknown','unavailable'] and is_state(e,'on') %}{% set busy.any = true %}{% endif %}
+            {% endfor %}{% endfor %}
+            {{ not busy.any }}
+      then:
+        - action: homeassistant.turn_on
+          data:
+            entity_id: "{{ states('input_text.garden_a_valve_5_entity') }}"
+        - delay:
+            minutes: "{{ states('input_number.garden_a_valve_5_duration') | int }}"
+        - action: homeassistant.turn_off
+          data:
+            entity_id: "{{ states('input_text.garden_a_valve_5_entity') }}"
+        - delay:
+            seconds: 10
+
+# -------------------------------------------------------------------------
+# SCHEDULE B — script.garden_b_watering_sequence
+# (identical to A, garden_b_* namespace; same shared cap guard)
+# -------------------------------------------------------------------------
+garden_b_watering_sequence:
+  alias: Garden Watering Sequence B
+  description: >-
+    Schedule B. Runs configured valve slots 1..5 in order, each for its set
+    duration, honouring the system-wide single-valve cap (skips a zone if any
+    garden valve is already on).
+  icon: mdi:sprinkler
+  mode: single
+  sequence:
+    - action: input_datetime.set_datetime
+      target:
+        entity_id: input_datetime.garden_b_run_started
+      data:
+        timestamp: "{{ now().timestamp() | int }}"
+    - if:
+        - condition: numeric_state
+          entity_id: input_number.garden_b_valve_1_duration
+          above: 0
+        - condition: template
+          value_template: >-
+            {% set busy = namespace(any=false) %}
+            {% for nsp in ['a','b'] %}{% for n in [1,2,3,4,5] %}
+              {% set e = states('input_text.garden_' ~ nsp ~ '_valve_' ~ n ~ '_entity') %}
+              {% if e not in ['','unknown','unavailable'] and is_state(e,'on') %}{% set busy.any = true %}{% endif %}
+            {% endfor %}{% endfor %}
+            {{ not busy.any }}
+      then:
+        - action: homeassistant.turn_on
+          data:
+            entity_id: "{{ states('input_text.garden_b_valve_1_entity') }}"
+        - delay:
+            minutes: "{{ states('input_number.garden_b_valve_1_duration') | int }}"
+        - action: homeassistant.turn_off
+          data:
+            entity_id: "{{ states('input_text.garden_b_valve_1_entity') }}"
+        - delay:
+            seconds: 10
+    - if:
+        - condition: numeric_state
+          entity_id: input_number.garden_b_valve_2_duration
+          above: 0
+        - condition: template
+          value_template: >-
+            {% set busy = namespace(any=false) %}
+            {% for nsp in ['a','b'] %}{% for n in [1,2,3,4,5] %}
+              {% set e = states('input_text.garden_' ~ nsp ~ '_valve_' ~ n ~ '_entity') %}
+              {% if e not in ['','unknown','unavailable'] and is_state(e,'on') %}{% set busy.any = true %}{% endif %}
+            {% endfor %}{% endfor %}
+            {{ not busy.any }}
+      then:
+        - action: homeassistant.turn_on
+          data:
+            entity_id: "{{ states('input_text.garden_b_valve_2_entity') }}"
+        - delay:
+            minutes: "{{ states('input_number.garden_b_valve_2_duration') | int }}"
+        - action: homeassistant.turn_off
+          data:
+            entity_id: "{{ states('input_text.garden_b_valve_2_entity') }}"
+        - delay:
+            seconds: 10
+    - if:
+        - condition: numeric_state
+          entity_id: input_number.garden_b_valve_3_duration
+          above: 0
+        - condition: template
+          value_template: >-
+            {% set busy = namespace(any=false) %}
+            {% for nsp in ['a','b'] %}{% for n in [1,2,3,4,5] %}
+              {% set e = states('input_text.garden_' ~ nsp ~ '_valve_' ~ n ~ '_entity') %}
+              {% if e not in ['','unknown','unavailable'] and is_state(e,'on') %}{% set busy.any = true %}{% endif %}
+            {% endfor %}{% endfor %}
+            {{ not busy.any }}
+      then:
+        - action: homeassistant.turn_on
+          data:
+            entity_id: "{{ states('input_text.garden_b_valve_3_entity') }}"
+        - delay:
+            minutes: "{{ states('input_number.garden_b_valve_3_duration') | int }}"
+        - action: homeassistant.turn_off
+          data:
+            entity_id: "{{ states('input_text.garden_b_valve_3_entity') }}"
+        - delay:
+            seconds: 10
+    - if:
+        - condition: numeric_state
+          entity_id: input_number.garden_b_valve_4_duration
+          above: 0
+        - condition: template
+          value_template: >-
+            {% set busy = namespace(any=false) %}
+            {% for nsp in ['a','b'] %}{% for n in [1,2,3,4,5] %}
+              {% set e = states('input_text.garden_' ~ nsp ~ '_valve_' ~ n ~ '_entity') %}
+              {% if e not in ['','unknown','unavailable'] and is_state(e,'on') %}{% set busy.any = true %}{% endif %}
+            {% endfor %}{% endfor %}
+            {{ not busy.any }}
+      then:
+        - action: homeassistant.turn_on
+          data:
+            entity_id: "{{ states('input_text.garden_b_valve_4_entity') }}"
+        - delay:
+            minutes: "{{ states('input_number.garden_b_valve_4_duration') | int }}"
+        - action: homeassistant.turn_off
+          data:
+            entity_id: "{{ states('input_text.garden_b_valve_4_entity') }}"
+        - delay:
+            seconds: 10
+    - if:
+        - condition: numeric_state
+          entity_id: input_number.garden_b_valve_5_duration
+          above: 0
+        - condition: template
+          value_template: >-
+            {% set busy = namespace(any=false) %}
+            {% for nsp in ['a','b'] %}{% for n in [1,2,3,4,5] %}
+              {% set e = states('input_text.garden_' ~ nsp ~ '_valve_' ~ n ~ '_entity') %}
+              {% if e not in ['','unknown','unavailable'] and is_state(e,'on') %}{% set busy.any = true %}{% endif %}
+            {% endfor %}{% endfor %}
+            {{ not busy.any }}
+      then:
+        - action: homeassistant.turn_on
+          data:
+            entity_id: "{{ states('input_text.garden_b_valve_5_entity') }}"
+        - delay:
+            minutes: "{{ states('input_number.garden_b_valve_5_duration') | int }}"
+        - action: homeassistant.turn_off
+          data:
+            entity_id: "{{ states('input_text.garden_b_valve_5_entity') }}"
+        - delay:
+            seconds: 10

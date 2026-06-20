@@ -28,9 +28,16 @@ Claude will:
 4. Discover your weather entity and wire up the rain-cancel automations
 5. Add the card to your chosen dashboard
 
-Already running the scheduler and just want to add rain cancel? Ask:
+Already running the scheduler and want a **second independent schedule** (its own days,
+start time, and zones)? Ask:
 
-> "Add automatic rain cancel to my Garden Watering Scheduler — discover my weather entity and set up the rain automations."
+> "Add a second independent schedule to my Garden Watering Scheduler using the
+> multi-schedule bundle at https://github.com/rhamblen/garden-watering-scheduler — migrate
+> my current schedule into the `garden_a_*` namespace, create a fresh `garden_b_*` schedule,
+> and add the second card next to my existing one. Keep rain cancel and winterise shared."
+
+See **[Adding a second schedule](#adding-a-second-schedule-independent)** below for exactly
+what that does and for the manual steps.
 
 You can start with a single valve and add more later — populate the next slot's entity, name, and duration helpers and the card and script pick them up automatically, no further changes needed.
 

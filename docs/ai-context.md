@@ -226,8 +226,10 @@ schedule** (the only cross-schedule edit besides the rain templates).
 **Settle delay (v0.6.1).** Each zone ends with a `delay: {seconds: 10}` **after** its
 `turn_off`. A Zigbee valve does not report `off` to HA instantly, so without the gap the
 next zone's cap guard still sees the just-closed valve as `on` and skips that zone (symptom:
-"second valve didn't open"). The 10 s lets the state propagate. Side effect: the card's
-during-run countdown (sum of durations only) finishes ~10 s/zone before the script does.
+"second valve didn't open"). The 10 s lets the state propagate. **v0.6.2:** the multi-schedule
+cards' during-run countdown adds `settle_s = (vns.parts|length)*10` to `end_ts`/`rem_s` so it
+accounts for the gaps. (The single-schedule root `card.yaml` is unchanged — its script has no
+cap guard and therefore no settle delay, so its countdown was already accurate.)
 
 ### Schedule-automation change vs single-schedule
 Both `automation.garden_X_watering_schedule` carry an explicit
@@ -277,6 +279,7 @@ Master meter-valve linkage, two-part winterise model, drain sequencing
 | 5 | v0.5.0 ✅ | ▶ Start now / ■ Stop header controls; client-side ticking Time-remaining countdown (Test button + interim progress bar removed) | 1 input_datetime helper (`garden_run_started`); script stamps it as step 0 |
 | 6 | v0.6.0 ✅ | Multiple independent schedules — namespaced `garden_a_*` / `garden_b_*`, FIFO single-valve cap, shared rain + winterise (`multi-schedule/`) | 50 helpers (25 per schedule), 2 scripts, 2 schedule automations, 3 rain automations generalised, 2 cards |
 | 6.1 | v0.6.1 ✅ | Bug fix — 10 s settle delay after each `turn_off` so the next zone isn't skipped by the cap guard while a just-closed Zigbee valve still reads `on` | Both sequence scripts updated |
+| 6.2 | v0.6.2 ✅ | Countdown accounts for settle gaps (`+settle_s`); install guide Claude section swaps the rain-cancel follow-up for an "add a second schedule" prompt | card-a/b updated; INSTALLATION.md |
 | — | v1.0.0 | Full polish + complete docs | None |
 
 ---

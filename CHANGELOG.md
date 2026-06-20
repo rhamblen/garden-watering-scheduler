@@ -18,6 +18,23 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.6.2] — 2026-06-20
+
+### Fixed
+- **During-run "Time remaining" countdown now accounts for the settle gaps.** The
+  multi-schedule cards (`card-a.yaml` / `card-b.yaml`) add `settle_s = (vns.parts|length) * 10`
+  seconds to the computed run-end, so the countdown matches the actual finish instead of
+  hitting `0:00` ~10 s per zone early. (The single-schedule root `card.yaml` is unchanged — its
+  script has no cap guard and no settle delay, so its countdown was already accurate.)
+
+### Changed
+- **Install guide — Claude section.** Replaced the standalone "ask Claude to add rain cancel"
+  follow-up (rain cancel is already covered by the main install prompt and Step 5) with an
+  **"ask Claude to add a second independent schedule"** prompt, linking to the *Adding a second
+  schedule* section.
+
+---
+
 ## [0.6.1] — 2026-06-20
 
 ### Fixed
