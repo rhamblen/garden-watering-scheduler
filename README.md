@@ -83,7 +83,7 @@ Claude discovers your valve switch entities, creates all helpers (pre-filling th
 2. Create the HA helpers (see [INSTALLATION.md](INSTALLATION.md)) — fill in 1–5 valve slots with your switch entity IDs
 3. Download [`card.yaml`](card.yaml)
 4. Add as a Manual card on your dashboard
-5. (Optional) Add automatic rain cancel — see [INSTALLATION.md](INSTALLATION.md) → *Automatic rain cancel*
+5. (Optional) Add a **second schedule** — install a second, namespaced card (you can't just copy the first); see [INSTALLATION.md](INSTALLATION.md) → *Adding a second schedule*
 
 ---
 
