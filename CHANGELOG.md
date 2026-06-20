@@ -8,21 +8,32 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### In progress — multiple independent schedules (A & B)
+### Deferred (recorded in the design doc, not built)
 
-First build of Option 3 hybrid namespace, **two schedules** (`garden_a_*` /
-`garden_b_*`). Repo files under `multi-schedule/`; **deployed live** on the My Home
-dashboard (singleton `garden_*` helpers renamed → `garden_a_*` preserving values, 25
-`garden_b_*` created fresh, both scripts + automations installed, the 3 rain automations
-generalised, old single-schedule script + automation removed, cards A & B deployed side by
-side). The deferred meter / winterise-drain / leak-detection parts are **not** included.
-README + INSTALLATION (with an "Adding a second schedule" section) + `docs/ai-context.md`
-updated. See `multi-schedule/README.md` and `docs/design-multiple-schedules.md`.
+- Master meter-valve linkage: two-part winterise model, drain sequencing
+  (close-zones-before-supply), leak detection. Likely to be owned by the meter
+  project — see `docs/design-multiple-schedules.md`.
+- Design review — pool fill target max vs default; valve-card timer handoff vs
+  self-managed delay.
 
-- **Per-schedule (namespaced):** day toggles, start time, valve slots 1–5,
-  armed flag, run-started stamp, one sequence script + one schedule automation
-  each (`multi-schedule/scripts.yaml`, `schedule-automations.yaml`,
-  `card-a.yaml`, `card-b.yaml`).
+---
+
+## [0.6.0] — 2026-06-20
+
+### Added
+- **Multiple independent schedules (A & B)** — Option 3 hybrid namespace. Each
+  schedule has its own days, start time, zones, armed flag, sequence script, and
+  schedule automation, so two cards are genuinely independent rather than two
+  views of one schedule. Bundle shipped under `multi-schedule/` (`card-a.yaml`,
+  `card-b.yaml`, `scripts.yaml`, `schedule-automations.yaml`,
+  `rain-automations.yaml`, `helpers.md`, `README.md`).
+- **Design doc** — `docs/design-multiple-schedules.md` records the agreed design
+  (Option 3 hybrid namespace + FIFO single-valve policy).
+
+### Design decisions
+- **Per-schedule (namespaced `garden_a_*` / `garden_b_*`):** day toggles, start
+  time, valve slots 1–5, armed flag, run-started stamp, one sequence script + one
+  schedule automation each.
 - **Shared (house-wide, single instance):** rain cancel + threshold + last-rain
   and the rain automations, winter shutdown, weather entity.
 - **Overlap policy — FIFO, single-valve cap:** each sequence script guards every
@@ -43,13 +54,16 @@ updated. See `multi-schedule/README.md` and `docs/design-multiple-schedules.md`.
   (`garden_rain_cancel`, `garden_winter_shutdown`, `garden_rain_threshold`,
   `garden_last_rain`) left untouched.
 
-### Deferred (recorded in the design doc, not built here)
-
-- Master meter-valve linkage: two-part winterise model, drain sequencing
-  (close-zones-before-supply), leak detection. Likely to be owned by the meter
-  project — see `docs/design-multiple-schedules.md`.
-- Design review — pool fill target max vs default; valve-card timer handoff vs
-  self-managed delay.
+### Migration from v0.5.x
+- Rename your singleton `garden_*` per-schedule helpers to `garden_a_*` (preserves
+  values), create the 25 `garden_b_*` helpers, install the A/B scripts +
+  automations, replace the three rain automations with the generalised versions,
+  remove the old `script.garden_watering_sequence` + `automation.garden_watering_schedule`,
+  and deploy `card-a.yaml` + `card-b.yaml`. Full steps (Claude-assisted and manual)
+  in `INSTALLATION.md` → *Adding a second schedule*.
+- **Populate each schedule's valve slots** — a slot with a blank entity renders no
+  zone row, so set `garden_b_valve_N_entity` (and `_name`) for every zone you want
+  to appear, even with duration 0.
 
 ---
 

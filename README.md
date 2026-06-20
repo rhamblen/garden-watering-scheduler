@@ -50,7 +50,7 @@ A Home Assistant Lovelace dashboard card that schedules sequential garden wateri
 | v0.3.0 | ✅ | Dynamic valve list (1–5 zones), next-run countdown, zone-exclude dot, Test button |
 | v0.4.0 | ✅ | Automatic rain cancel — 12 h actual + 24 h forecast check, with notification |
 | v0.5.0 | ✅ | Start-now / Stop header controls, live ticking time-remaining countdown (Test button removed) |
-| Unreleased | 🔜 | Multiple independent schedules (namespaced `garden_a_*` / `garden_b_*`), FIFO single-valve cap, shared rain + winterise — see [`multi-schedule/`](multi-schedule/) |
+| v0.6.0 | ✅ | Multiple independent schedules (namespaced `garden_a_*` / `garden_b_*`), FIFO single-valve cap, shared rain + winterise — see [`multi-schedule/`](multi-schedule/) |
 | v1.0.0 | planned | Full release — polish, complete docs |
 
 ---

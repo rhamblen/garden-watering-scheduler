@@ -202,7 +202,7 @@ Triggers: `time_pattern` minutes 0/30. Conditions: `(now()-30min) HH:MM == start
 
 ## Multiple independent schedules (`multi-schedule/`)
 
-Status: `[Unreleased]`. Two independent schedules built on **Option 3 hybrid namespace** + a
+Status: **v0.6.0**. Two independent schedules built on **Option 3 hybrid namespace** + a
 **FIFO single-valve** overlap policy. Design rationale: `docs/design-multiple-schedules.md`.
 Bundle: `multi-schedule/` — `card-a.yaml`, `card-b.yaml`, `scripts.yaml`,
 `schedule-automations.yaml`, `rain-automations.yaml`, `helpers.md`, `README.md`.
@@ -269,7 +269,7 @@ Master meter-valve linkage, two-part winterise model, drain sequencing
 | 3 | v0.3.0 ✅ | Dynamic valve list (1–5 zones), next-run countdown, zone-exclude dot, Test button | 15 valve-slot helpers; script rewritten |
 | 4 | v0.4.0 ✅ | Automatic rain cancel (12 h actual + 24 h forecast, with notification) | 1 input_datetime helper + 3 automations (recorder, auto-check, daily reset) |
 | 5 | v0.5.0 ✅ | ▶ Start now / ■ Stop header controls; client-side ticking Time-remaining countdown (Test button + interim progress bar removed) | 1 input_datetime helper (`garden_run_started`); script stamps it as step 0 |
-| — | Unreleased ✅ (deployed) | Multiple independent schedules — namespaced `garden_a_*` / `garden_b_*`, FIFO single-valve cap, shared rain + winterise (`multi-schedule/`) | 50 helpers (25 per schedule), 2 scripts, 2 schedule automations, 3 rain automations generalised, 2 cards |
+| 6 | v0.6.0 ✅ | Multiple independent schedules — namespaced `garden_a_*` / `garden_b_*`, FIFO single-valve cap, shared rain + winterise (`multi-schedule/`) | 50 helpers (25 per schedule), 2 scripts, 2 schedule automations, 3 rain automations generalised, 2 cards |
 | — | v1.0.0 | Full polish + complete docs | None |
 
 ---
