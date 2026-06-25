@@ -15,7 +15,7 @@ Two new helpers (`input_boolean.garden_a_schedule_arm_intent` / `garden_b_schedu
 | **Go** (body) | Arms schedule | Arms schedule; also sets intent = on |
 | **Go** (body, when armed) | — | Now shows **◼ Disarm** — disarms schedule and sets intent = off |
 | **■ Stop** (header) | Halts run + **disarms** | Halts run only; armed state and intent are preserved |
-| **❄ Winterise** (header, on) | Activates winter mode + **disarms** | Activates winter mode only; schedule stays armed for when winter is lifted |
+| **❄ Winterise** (header, on) | Activates winter mode + disarms | Activates winter mode + disarms + **clears arm intent** (so a reboot during winter won't re-arm) |
 
 ### Migration
 
@@ -30,6 +30,6 @@ If you have existing `garden_a_*` / `garden_b_*` helpers:
 
 ## Files changed
 
-- `multi-schedule/card-a.yaml` — Go/Disarm toggle; Stop and Winterise no longer disarm
+- `multi-schedule/card-a.yaml` — Go/Disarm toggle; Stop no longer disarms; Winterise disarms + clears arm intent
 - `multi-schedule/card-b.yaml` — same
 - `multi-schedule/schedule-automations.yaml` — new startup restore automation appended

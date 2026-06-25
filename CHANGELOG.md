@@ -28,15 +28,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 - **Stop button no longer disarms the schedule** — it halts the active run and closes all
   valves, but leaves `garden_X_schedule_armed` and the intent helper untouched. The
   schedule re-arms itself on the next startup if the intent is on.
-- **Winterise button no longer disarms the schedule** — activating `❄` only sets
-  `garden_winter_shutdown`. The schedule automation already has `winter_shutdown == off`
-  as a hard condition, so no separate disarm is needed. De-winterising re-enables the
-  schedule immediately without requiring a manual re-arm.
+- **Winterise button disarms the schedule and clears arm intent** — activating `❄` sets
+  `winter_shutdown = on`, `armed = off`, and `arm_intent = off`. This prevents the
+  startup automation from re-arming the schedule while the system is in winter shutdown.
+  De-winterising leaves the schedule disarmed; press `▶ Go` to re-arm for the new season.
 
 ### Notes
-- **Behaviour change for existing users:** pressing Stop or ❄ Winterise no longer
-  disarms the schedule. To fully disarm, press `◼ Disarm` (the body toggle button when
-  armed), not Stop.
+- **Behaviour change for existing users:** pressing Stop no longer disarms the schedule.
+  To fully disarm press `◼ Disarm` (the body toggle). Winterise still disarms, but also
+  clears the intent so the schedule stays off across reboots until you press Go in spring.
 
 ### Deferred (recorded in the design doc, not built)
 

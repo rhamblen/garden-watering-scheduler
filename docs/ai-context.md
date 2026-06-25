@@ -107,7 +107,7 @@ Header group order: **▶ Start now · ■ Stop · ❄ Winterise · 🌧 Rain ·
 |--------|-------------------|
 | ▶ Start now (header) | `script.turn_on(garden_X_watering_sequence)` — runs immediately. No-op if winterised or already running; lights up (`gws-rb-on`) while running |
 | ■ Stop (header) | `script.turn_off(garden_X_watering_sequence)` + `homeassistant.turn_off` on **every** configured `garden_X_valve_N_entity` (templated `{% for valve in vns.valves %}`). Does **not** touch `armed` or `arm_intent` — halts the run only |
-| ❄ Winterise (header, off→on) | `turn_on(winter_shutdown)` only — does **not** disarm. The schedule automation's `winter_shutdown == off` condition is a hard gate |
+| ❄ Winterise (header, off→on) | `turn_on(winter_shutdown)` + `turn_off(arm_intent)` + `turn_off(armed)`. Clears intent so a reboot during winter does not re-arm the schedule |
 | ❄ Winterise (header, on→off) | `turn_off(winter_shutdown)` |
 | 🌧 Rain (header) | Toggles `input_boolean.garden_rain_cancel` |
 | ▶ Go / ◼ Disarm (body, toggle) | **Disarmed →** `turn_on(arm_intent)` + `turn_on(armed)` + `turn_off(rain_cancel)`. **Armed →** `turn_off(arm_intent)` + `turn_off(armed)` + `turn_off(rain_cancel)`. Dimmed when winterised and disarmed only |
