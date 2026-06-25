@@ -53,7 +53,8 @@ A Home Assistant Lovelace dashboard card that schedules sequential garden wateri
 | v0.6.0 | ✅ | Multiple independent schedules (namespaced `garden_a_*` / `garden_b_*`), FIFO single-valve cap, shared rain + winterise — see [`multi-schedule/`](multi-schedule/) |
 | v0.6.1 | ✅ | Bug fix — 10 s settle delay after each valve closes, so the next zone isn't skipped while a just-closed Zigbee valve still reads `on` |
 | v0.6.2 | ✅ | Countdown now includes the settle gaps (accurate "Time remaining"); install guide gains a Claude "add a second schedule" prompt |
-| v0.7.0 | ✅ | Arm-state persistence — Go/Disarm toggle; intent helper + startup automation restores armed state after HA reboot; Stop and Winterise no longer disarm |
+| v0.7.0 | ✅ | Arm-state persistence — Go/Disarm toggle; intent helper + startup automation restores armed state after HA reboot; Stop no longer disarms |
+| v0.7.1 | ✅ | Fix: Winterise correctly disarms and clears arm intent (schedule stays off across reboots during winter) |
 | v1.0.0 | planned | Full release — polish, complete docs |
 
 ---

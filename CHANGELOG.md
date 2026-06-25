@@ -10,6 +10,17 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.7.1] — 2026-06-25
+
+### Fixed
+- **Winterise now correctly disarms the schedule and clears arm intent.** In v0.7.0,
+  `❄` was decoupled from the armed state. Corrected: activating `❄` now sets
+  `winter_shutdown = on`, `armed = off`, and `arm_intent = off`, so the schedule stays
+  off across reboots during winter. De-winterising leaves the schedule disarmed until the
+  user presses `▶ Go` in spring. (`card-a.yaml`, `card-b.yaml`)
+
+---
+
 ## [0.7.0] — 2026-06-25
 
 ### Added
