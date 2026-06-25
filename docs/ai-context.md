@@ -70,7 +70,8 @@ Single `custom:html-template-card` with `ignore_line_breaks: true`. Uses:
 | `input_text.garden_valve_1_entity` … `_5_entity` | Text × 5 | Valve switch entity ID per slot (blank = slot unused) |
 | `input_text.garden_valve_1_name` … `_5_name` | Text × 5 | Zone display name per slot |
 | `input_number.garden_valve_1_duration` … `_5_duration` | Number (0–60, step 5) × 5 | Per-zone minutes; 0 = excluded from run |
-| `input_boolean.garden_schedule_armed` | Toggle | Schedule active/inactive |
+| `input_boolean.garden_a_schedule_armed` / `garden_b_schedule_armed` | Toggle × 2 | Schedule active/inactive (live state; restored from arm_intent on startup) |
+| `input_boolean.garden_a_schedule_arm_intent` / `garden_b_schedule_arm_intent` | Toggle × 2 | User's persistent intent to have the schedule armed; only written by Go/Disarm buttons, never by automations or Stop |
 | `input_boolean.garden_winter_shutdown` | Toggle | Seasonal suspension |
 | `input_boolean.garden_rain_cancel` | Toggle | Skip today's run (manual or auto) |
 | `input_number.garden_rain_threshold` | Number (0–100, step 5) | Forecast precipitation % threshold for auto rain cancel |
@@ -104,12 +105,12 @@ Header group order: **▶ Start now · ■ Stop · ❄ Winterise · 🌧 Rain ·
 
 | Button | Action when clicked |
 |--------|-------------------|
-| ▶ Start now (header) | `script.turn_on(garden_watering_sequence)` — runs immediately. No-op if winterised or already running; lights up (`gws-rb-on`) while running |
-| ■ Stop (header) | `script.turn_off(garden_watering_sequence)` + `homeassistant.turn_off` on **every** configured `garden_valve_N_entity` (templated `{% for valve in vns.valves %}`) + `turn_off(armed)` + `turn_off(winter_shutdown)` |
-| ❄ Winterise (header, off→on) | `turn_on(winter_shutdown)` + `turn_off(armed)` |
+| ▶ Start now (header) | `script.turn_on(garden_X_watering_sequence)` — runs immediately. No-op if winterised or already running; lights up (`gws-rb-on`) while running |
+| ■ Stop (header) | `script.turn_off(garden_X_watering_sequence)` + `homeassistant.turn_off` on **every** configured `garden_X_valve_N_entity` (templated `{% for valve in vns.valves %}`). Does **not** touch `armed` or `arm_intent` — halts the run only |
+| ❄ Winterise (header, off→on) | `turn_on(winter_shutdown)` only — does **not** disarm. The schedule automation's `winter_shutdown == off` condition is a hard gate |
 | ❄ Winterise (header, on→off) | `turn_off(winter_shutdown)` |
 | 🌧 Rain (header) | Toggles `input_boolean.garden_rain_cancel` |
-| ▶ Go (body) | `turn_on(armed)` + `turn_off(rain_cancel)`. No-op if winterised. |
+| ▶ Go / ◼ Disarm (body, toggle) | **Disarmed →** `turn_on(arm_intent)` + `turn_on(armed)` + `turn_off(rain_cancel)`. **Armed →** `turn_off(arm_intent)` + `turn_off(armed)` + `turn_off(rain_cancel)`. Dimmed when winterised and disarmed only |
 | Duration dot (5/10/15/20) | `input_number.set_value` on that slot's `garden_valve_N_duration` |
 | ✗ dot (per zone) | Sets that slot's `garden_valve_N_duration` to 0 (excludes the zone) |
 
@@ -280,6 +281,7 @@ Master meter-valve linkage, two-part winterise model, drain sequencing
 | 6 | v0.6.0 ✅ | Multiple independent schedules — namespaced `garden_a_*` / `garden_b_*`, FIFO single-valve cap, shared rain + winterise (`multi-schedule/`) | 50 helpers (25 per schedule), 2 scripts, 2 schedule automations, 3 rain automations generalised, 2 cards |
 | 6.1 | v0.6.1 ✅ | Bug fix — 10 s settle delay after each `turn_off` so the next zone isn't skipped by the cap guard while a just-closed Zigbee valve still reads `on` | Both sequence scripts updated |
 | 6.2 | v0.6.2 ✅ | Countdown accounts for settle gaps (`+settle_s`); install guide Claude section swaps the rain-cancel follow-up for an "add a second schedule" prompt | card-a/b updated; INSTALLATION.md |
+| 7 | v0.7.0 ✅ | Arm-state persistence — intent helper pattern; Go/Disarm toggle; Stop no longer disarms; Winterise no longer disarms | 2 `input_boolean` helpers (`garden_a/b_schedule_arm_intent`); 1 startup automation (`Garden Watering Restore Armed State`) |
 | — | v1.0.0 | Full polish + complete docs | None |
 
 ---

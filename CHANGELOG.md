@@ -8,6 +8,36 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [0.7.0] — 2026-06-25
+
+### Added
+- **Arm-state persistence across HA reboots.** Each schedule now has a companion
+  `input_boolean.garden_X_schedule_arm_intent` helper that records the user's explicit
+  intent to keep the schedule armed. A new `homeassistant.start` automation restores
+  `garden_X_schedule_armed` from the intent helper on every HA startup, so schedules
+  no longer need to be re-armed after a reboot.
+- **`multi-schedule/schedule-automations.yaml`** — new *Garden Watering Restore Armed
+  State* automation covering both schedules A and B.
+
+### Changed
+- **Go button becomes a Go / Disarm toggle** (`card-a.yaml`, `card-b.yaml`). When the
+  schedule is disarmed, the body button shows `▶ Go` (arms the schedule and sets
+  arm intent = on). When armed, it shows `◼ Disarm` (disarms and sets arm intent = off).
+- **Stop button no longer disarms the schedule** — it halts the active run and closes all
+  valves, but leaves `garden_X_schedule_armed` and the intent helper untouched. The
+  schedule re-arms itself on the next startup if the intent is on.
+- **Winterise button no longer disarms the schedule** — activating `❄` only sets
+  `garden_winter_shutdown`. The schedule automation already has `winter_shutdown == off`
+  as a hard condition, so no separate disarm is needed. De-winterising re-enables the
+  schedule immediately without requiring a manual re-arm.
+
+### Notes
+- **Behaviour change for existing users:** pressing Stop or ❄ Winterise no longer
+  disarms the schedule. To fully disarm, press `◼ Disarm` (the body toggle button when
+  armed), not Stop.
+
 ### Deferred (recorded in the design doc, not built)
 
 - Master meter-valve linkage: two-part winterise model, drain sequencing

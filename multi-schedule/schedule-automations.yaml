@@ -95,3 +95,53 @@
         {{ is_state(days[dow], 'on') }}
   actions:
     - action: script.garden_b_watering_sequence
+
+# -------------------------------------------------------------------------
+# ARM-INTENT RESTORE — fires once on HA startup
+# -------------------------------------------------------------------------
+# Each schedule has a companion input_boolean.*_schedule_arm_intent that
+# records the user's explicit intent to have the schedule armed.  On HA
+# restart the live *_schedule_armed helper is restored from the intent
+# boolean, so the arm state survives a reboot.
+#
+# Button behaviour that preserves the intent:
+#   Go     → sets arm_intent = on  AND armed = on
+#   Disarm → sets arm_intent = off AND armed = off
+#   Stop   → halts the run, closes valves; does NOT touch arm_intent
+# The intent boolean is therefore only ever written by the user (via the
+# card buttons), never by automations, scripts, or the Stop action.
+- alias: Garden Watering Restore Armed State
+  description: >-
+    On HA start, restores garden_a/b_schedule_armed from their intent helpers
+    so the arm state persists across reboots.
+  mode: single
+  triggers:
+    - trigger: homeassistant
+      event: start
+  actions:
+    - choose:
+        - conditions:
+            - condition: state
+              entity_id: input_boolean.garden_a_schedule_arm_intent
+              state: "on"
+          sequence:
+            - action: input_boolean.turn_on
+              target:
+                entity_id: input_boolean.garden_a_schedule_armed
+      default:
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.garden_a_schedule_armed
+    - choose:
+        - conditions:
+            - condition: state
+              entity_id: input_boolean.garden_b_schedule_arm_intent
+              state: "on"
+          sequence:
+            - action: input_boolean.turn_on
+              target:
+                entity_id: input_boolean.garden_b_schedule_armed
+      default:
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.garden_b_schedule_armed
